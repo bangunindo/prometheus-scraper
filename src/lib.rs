@@ -160,9 +160,9 @@ mod tests {
         };
         assert_eq!(sample_count, Some(3));
         assert_eq!(buckets.len(), 2);
-        assert_eq!(buckets[0].count, 1);
+        assert_eq!(buckets[0].cumulative_count, 1);
         assert_eq!(buckets[0].upper_bound, 1.0);
-        assert_eq!(buckets[1].count, 3);
+        assert_eq!(buckets[1].cumulative_count, 3);
         assert!(buckets[1].upper_bound.is_infinite());
     }
 
@@ -193,7 +193,7 @@ mod tests {
             panic!("expected float bucket counts");
         };
         assert_eq!(sample_count, Some(3.0));
-        assert_eq!(buckets[0].count, 2.5);
+        assert_eq!(buckets[0].cumulative_count, 2.5);
     }
 
     #[test]

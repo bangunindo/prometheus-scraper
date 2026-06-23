@@ -138,7 +138,7 @@ impl BucketCount<'_> {
 }
 
 pub struct BucketFloat<'a> {
-    pub count: f64,
+    pub cumulative_count: f64,
     pub upper_bound: f64,
     pub exemplar: Option<Exemplar<'a>>,
 }
@@ -146,7 +146,7 @@ pub struct BucketFloat<'a> {
 impl BucketFloat<'_> {
     pub fn into_owned(self) -> super::owned::BucketFloat {
         super::owned::BucketFloat {
-            count: self.count,
+            cumulative_count: self.cumulative_count,
             upper_bound: self.upper_bound,
             exemplar: self.exemplar.map(Exemplar::into_owned),
         }
@@ -154,7 +154,7 @@ impl BucketFloat<'_> {
 }
 
 pub struct BucketInt<'a> {
-    pub count: u64,
+    pub cumulative_count: u64,
     pub upper_bound: f64,
     pub exemplar: Option<Exemplar<'a>>,
 }
@@ -162,7 +162,7 @@ pub struct BucketInt<'a> {
 impl BucketInt<'_> {
     pub fn into_owned(self) -> super::owned::BucketInt {
         super::owned::BucketInt {
-            count: self.count,
+            cumulative_count: self.cumulative_count,
             upper_bound: self.upper_bound,
             exemplar: self.exemplar.map(Exemplar::into_owned),
         }
@@ -371,11 +371,10 @@ fn proto_translate_classic_histogram<'a>(
     // Float histograms carry their counts in the `*_float` fields; integer
     // histograms use the plain ones. The presence of a float count anywhere
     // is what marks the whole histogram as float.
-    let is_float = histogram.sample_count_float.is_some()
-        || histogram
-            .bucket
-            .first()
-            .is_some_and(|bucket| bucket.cumulative_count_float.is_some());
+    let is_float = histogram.sample_count_float.is_some_and(|v| v > 0.0)
+        || histogram.zero_count_float.is_some_and(|v| v > 0.0)
+        || !histogram.positive_count.is_empty()
+        || !histogram.negative_count.is_empty();
     let counts = if is_float {
         BucketCount::Float {
             sample_count: histogram.sample_count_float,
@@ -384,7 +383,7 @@ fn proto_translate_classic_histogram<'a>(
                 .iter()
                 .map(|bucket| {
                     Ok(BucketFloat {
-                        count: bucket
+                        cumulative_count: bucket
                             .cumulative_count_float
                             .or_else(|| bucket.cumulative_count.map(|count| count as f64))
                             .ok_or_else(|| {
@@ -409,7 +408,7 @@ fn proto_translate_classic_histogram<'a>(
                 .iter()
                 .map(|bucket| {
                     Ok(BucketInt {
-                        count: bucket.cumulative_count.ok_or_else(|| {
+                        cumulative_count: bucket.cumulative_count.ok_or_else(|| {
                             super::Error::MissingField("Bucket: cumulative_count".into())
                         })?,
                         upper_bound: bucket.upper_bound.ok_or_else(|| {

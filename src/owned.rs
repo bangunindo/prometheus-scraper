@@ -105,13 +105,13 @@ pub enum BucketCount {
 }
 
 pub struct BucketFloat {
-    pub count: f64,
+    pub cumulative_count: f64,
     pub upper_bound: f64,
     pub exemplar: Option<Exemplar>,
 }
 
 pub struct BucketInt {
-    pub count: u64,
+    pub cumulative_count: u64,
     pub upper_bound: f64,
     pub exemplar: Option<Exemplar>,
 }
