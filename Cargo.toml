@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+buffa = "0.7"
+buffa-types = "0.7"
 chrono = { version = "0.4", default-features = false, features = ["std"], optional = true }
 
 [features]
