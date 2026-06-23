@@ -1,8 +1,14 @@
+#[cfg(not(feature = "chrono"))]
+pub struct Timestamp {
+    pub seconds: i64,
+    pub nanos: i32,
+}
+
 pub struct Counter {
     pub value: f64,
     pub exemplar: Option<Exemplar>,
     #[cfg(not(feature = "chrono"))]
-    pub created_timestamp_ns: Option<i128>,
+    pub created_timestamp: Option<Timestamp>,
     #[cfg(feature = "chrono")]
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
@@ -12,7 +18,7 @@ pub struct Summary {
     pub sample_sum: Option<f64>,
     pub quantile: Vec<Quantile>,
     #[cfg(not(feature = "chrono"))]
-    pub created_timestamp_ns: Option<i128>,
+    pub created_timestamp: Option<Timestamp>,
     #[cfg(feature = "chrono")]
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
@@ -21,7 +27,7 @@ pub struct Histogram {
     pub sample_sum: Option<f64>,
     pub counts: BucketCount,
     #[cfg(not(feature = "chrono"))]
-    pub created_timestamp_ns: Option<i128>,
+    pub created_timestamp: Option<Timestamp>,
     #[cfg(feature = "chrono")]
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
@@ -38,7 +44,7 @@ pub struct NativeHistogram {
     pub counts: NativeCounts,
     pub exemplars: Vec<Exemplar>,
     #[cfg(not(feature = "chrono"))]
-    pub created_timestamp_ns: Option<i128>,
+    pub created_timestamp: Option<Timestamp>,
     #[cfg(feature = "chrono")]
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
@@ -114,7 +120,7 @@ pub struct Exemplar {
     pub label: Vec<LabelPair>,
     pub value: f64,
     #[cfg(not(feature = "chrono"))]
-    pub timestamp_ns: Option<i128>,
+    pub timestamp: Option<Timestamp>,
     #[cfg(feature = "chrono")]
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
@@ -133,7 +139,7 @@ pub struct Metric {
     pub label: Vec<LabelPair>,
     pub value: MetricValue,
     #[cfg(not(feature = "chrono"))]
-    pub timestamp_ms: Option<i64>,
+    pub timestamp: Option<Timestamp>,
     #[cfg(feature = "chrono")]
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }

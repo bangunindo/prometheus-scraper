@@ -1,5 +1,7 @@
-pub mod owned;
+use std::fmt;
+
 pub mod borrowed;
+pub mod owned;
 
 /// Generated protobuf types for the Prometheus `io.prometheus.client` schema.
 ///
@@ -28,6 +30,25 @@ pub mod borrowed;
 mod proto {
     include!("proto/gen/io.prometheus.client.mod.rs");
 }
+
+#[derive(Debug)]
+pub enum Error {
+    MissingField(String),
+    InvalidFieldValue((String, String)),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::MissingField(field) => write!(f, "missing required field: {}", field),
+            Error::InvalidFieldValue((field, value)) => {
+                write!(f, "invalid field value: {} = {}", field, value)
+            }
+        }
+    }
+}
+
+impl std::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
