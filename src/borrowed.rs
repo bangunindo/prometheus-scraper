@@ -327,7 +327,13 @@ fn proto_translate_exemplar<'a>(
     if !is_set {
         return Ok(None);
     }
-    Ok(Some(Exemplar {
+    proto_translate_exemplar_inner(exemplar).map(Some)
+}
+
+fn proto_translate_exemplar_inner<'a>(
+    exemplar: &super::proto::ExemplarView<'a>,
+) -> Result<Exemplar<'a>, super::Error> {
+    Ok(Exemplar {
         value: exemplar
             .value
             .ok_or_else(|| super::Error::MissingField("Exemplar: value".into()))?,
@@ -341,11 +347,165 @@ fn proto_translate_exemplar<'a>(
             .iter()
             .map(proto_translate_label)
             .collect::<Result<Vec<_>, _>>()?,
-    }))
+    })
+}
+
+fn proto_translate_bucket_span(
+    span: &super::proto::BucketSpanView<'_>,
+) -> Result<super::owned::BucketSpan, super::Error> {
+    // A no-op span is `(offset 0, length 0)`, and proto2 may elide either
+    // scalar when it equals its default, so an absent field is a genuine 0
+    // rather than missing data.
+    Ok(super::owned::BucketSpan {
+        offset: span.offset.unwrap_or(0),
+        length: span.length.unwrap_or(0),
+    })
+}
+
+/// Translate the conventional (classic) part of a histogram: the explicit
+/// `bucket` list plus its `sample_count`/`sample_sum`. Used on its own for
+/// `Histogram`/`GaugeHistogram` and as the classic half of a hybrid.
+fn proto_translate_classic_histogram<'a>(
+    histogram: &super::proto::HistogramView<'a>,
+) -> Result<Histogram<'a>, super::Error> {
+    // Float histograms carry their counts in the `*_float` fields; integer
+    // histograms use the plain ones. The presence of a float count anywhere
+    // is what marks the whole histogram as float.
+    let is_float = histogram.sample_count_float.is_some()
+        || histogram
+            .bucket
+            .first()
+            .is_some_and(|bucket| bucket.cumulative_count_float.is_some());
+    let counts = if is_float {
+        BucketCount::Float {
+            sample_count: histogram.sample_count_float,
+            buckets: histogram
+                .bucket
+                .iter()
+                .map(|bucket| {
+                    Ok(BucketFloat {
+                        count: bucket
+                            .cumulative_count_float
+                            .or_else(|| bucket.cumulative_count.map(|count| count as f64))
+                            .ok_or_else(|| {
+                                super::Error::MissingField("Bucket: cumulative_count".into())
+                            })?,
+                        upper_bound: bucket.upper_bound.ok_or_else(|| {
+                            super::Error::MissingField("Bucket: upper_bound".into())
+                        })?,
+                        exemplar: proto_translate_exemplar(
+                            bucket.exemplar.is_set(),
+                            &bucket.exemplar,
+                        )?,
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        }
+    } else {
+        BucketCount::Int {
+            sample_count: histogram.sample_count,
+            buckets: histogram
+                .bucket
+                .iter()
+                .map(|bucket| {
+                    Ok(BucketInt {
+                        count: bucket.cumulative_count.ok_or_else(|| {
+                            super::Error::MissingField("Bucket: cumulative_count".into())
+                        })?,
+                        upper_bound: bucket.upper_bound.ok_or_else(|| {
+                            super::Error::MissingField("Bucket: upper_bound".into())
+                        })?,
+                        exemplar: proto_translate_exemplar(
+                            bucket.exemplar.is_set(),
+                            &bucket.exemplar,
+                        )?,
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        }
+    };
+    Ok(Histogram {
+        sample_sum: histogram.sample_sum,
+        counts,
+        created_timestamp: proto_translate_ts(
+            histogram.created_timestamp.is_set(),
+            histogram.created_timestamp.seconds,
+            histogram.created_timestamp.nanos,
+        ),
+    })
+}
+
+/// Translate the native (sparse) part of a histogram: the `schema`, zero
+/// bucket, and positive/negative spans with their per-bucket counts. Used on
+/// its own for `NativeHistogram` and as the native half of a hybrid.
+fn proto_translate_native_histogram<'a>(
+    histogram: &super::proto::HistogramView<'a>,
+) -> Result<NativeHistogram<'a>, super::Error> {
+    // Integer native histograms encode counts as deltas (`*_delta`), float
+    // ones as absolute counts (`*_count`); the float-typed fields likewise
+    // mark the histogram as float.
+    let is_float = histogram.sample_count_float.is_some()
+        || histogram.zero_count_float.is_some()
+        || !histogram.positive_count.is_empty()
+        || !histogram.negative_count.is_empty();
+    let counts = if is_float {
+        super::owned::NativeCounts::Float {
+            sample_count: histogram.sample_count_float,
+            zero_count: histogram.zero_count_float.unwrap_or(0.0),
+            positive_spans: histogram
+                .positive_span
+                .iter()
+                .map(proto_translate_bucket_span)
+                .collect::<Result<Vec<_>, _>>()?,
+            positive_counts: histogram.positive_count.to_vec(),
+            negative_spans: histogram
+                .negative_span
+                .iter()
+                .map(proto_translate_bucket_span)
+                .collect::<Result<Vec<_>, _>>()?,
+            negative_counts: histogram.negative_count.to_vec(),
+        }
+    } else {
+        super::owned::NativeCounts::Int {
+            sample_count: histogram.sample_count,
+            zero_count: histogram.zero_count.unwrap_or(0),
+            positive_spans: histogram
+                .positive_span
+                .iter()
+                .map(proto_translate_bucket_span)
+                .collect::<Result<Vec<_>, _>>()?,
+            positive_deltas: histogram.positive_delta.to_vec(),
+            negative_spans: histogram
+                .negative_span
+                .iter()
+                .map(proto_translate_bucket_span)
+                .collect::<Result<Vec<_>, _>>()?,
+            negative_deltas: histogram.negative_delta.to_vec(),
+        }
+    };
+    Ok(NativeHistogram {
+        schema: histogram
+            .schema
+            .ok_or_else(|| super::Error::MissingField("Histogram: schema".into()))?,
+        zero_threshold: histogram.zero_threshold.unwrap_or(0.0),
+        sample_sum: histogram.sample_sum,
+        counts,
+        exemplars: histogram
+            .exemplars
+            .iter()
+            .map(proto_translate_exemplar_inner)
+            .collect::<Result<Vec<_>, _>>()?,
+        created_timestamp: proto_translate_ts(
+            histogram.created_timestamp.is_set(),
+            histogram.created_timestamp.seconds,
+            histogram.created_timestamp.nanos,
+        ),
+    })
 }
 
 fn proto_translate_metric<'a>(
     view: &super::proto::MetricView<'a>,
+    family_type: &super::owned::MetricType,
 ) -> Result<Metric<'a>, super::Error> {
     let label = view
         .label
@@ -401,7 +561,28 @@ fn proto_translate_metric<'a>(
                 .collect::<Result<Vec<_>, _>>()?,
         })
     } else if view.histogram.is_set() {
-        todo!()
+        let histogram = &view.histogram;
+        // A `GAUGE_HISTOGRAM` family is indistinguishable from a classic
+        // histogram by its fields alone — only the family type marks it — so
+        // it's handled separately. Otherwise the shape of the histogram
+        // decides: explicit `bucket`s mean a classic part, a set `schema`
+        // means a native part, and both together make a hybrid.
+        if matches!(family_type, super::owned::MetricType::GaugeHistogram) {
+            MetricValue::GaugeHistogram(proto_translate_classic_histogram(histogram)?)
+        } else {
+            match (!histogram.bucket.is_empty(), histogram.schema.is_some()) {
+                (true, true) => MetricValue::HybridHistogram {
+                    classic: proto_translate_classic_histogram(histogram)?,
+                    native: proto_translate_native_histogram(histogram)?,
+                },
+                (false, true) => {
+                    MetricValue::NativeHistogram(proto_translate_native_histogram(histogram)?)
+                }
+                (true, false) | (false, false) => {
+                    MetricValue::Histogram(proto_translate_classic_histogram(histogram)?)
+                }
+            }
+        }
     } else if view.untyped.is_set() {
         MetricValue::Untyped(
             view.untyped
@@ -430,10 +611,11 @@ impl<'a> TryFrom<super::proto::MetricFamilyView<'a>> for MetricFamily<'a> {
     type Error = super::Error;
 
     fn try_from(value: super::proto::MetricFamilyView<'a>) -> Result<Self, Self::Error> {
+        let r#type = proto_infer_type(&value)?;
         let metric = value
             .metric
             .iter()
-            .map(|metric| proto_translate_metric(metric))
+            .map(|metric| proto_translate_metric(metric, &r#type))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             name: Cow::Borrowed(
@@ -442,7 +624,7 @@ impl<'a> TryFrom<super::proto::MetricFamilyView<'a>> for MetricFamily<'a> {
                     .ok_or_else(|| super::Error::MissingField("MetricFamily: name".into()))?,
             ),
             help: value.help.map(Cow::Borrowed),
-            r#type: proto_infer_type(&value)?,
+            r#type,
             metric,
             unit: value.unit.map(Cow::Borrowed),
         })

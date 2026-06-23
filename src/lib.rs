@@ -101,4 +101,227 @@ mod tests {
             "string fields must borrow from the input buffer"
         );
     }
+
+    use crate::owned::{BucketCount, MetricValue, NativeCounts};
+    use crate::proto::{Bucket, BucketSpan, Histogram};
+
+    /// Round-trip a single-metric histogram family through the wire and the
+    /// borrowed translation, returning the (necessarily owned) metric value.
+    fn translate_histogram(family_type: MetricType, histogram: Histogram) -> MetricValue {
+        let owned = MetricFamily {
+            name: Some("test_histogram".into()),
+            r#type: Some(family_type),
+            metric: vec![Metric {
+                histogram: histogram.into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let bytes = owned.encode_to_vec();
+        let view = MetricFamilyView::decode_view(&bytes).unwrap();
+        let family: crate::owned::MetricFamily = crate::borrowed::MetricFamily::try_from(view)
+            .unwrap()
+            .into();
+        family.metric.into_iter().next().unwrap().value
+    }
+
+    #[test]
+    fn classic_integer_histogram() {
+        let value = translate_histogram(
+            MetricType::HISTOGRAM,
+            Histogram {
+                sample_count: Some(3),
+                sample_sum: Some(6.5),
+                bucket: vec![
+                    Bucket {
+                        cumulative_count: Some(1),
+                        upper_bound: Some(1.0),
+                        ..Default::default()
+                    },
+                    Bucket {
+                        cumulative_count: Some(3),
+                        upper_bound: Some(f64::INFINITY),
+                        ..Default::default()
+                    },
+                ],
+                ..Default::default()
+            },
+        );
+        let MetricValue::Histogram(h) = value else {
+            panic!("expected a classic histogram");
+        };
+        assert_eq!(h.sample_sum, Some(6.5));
+        let BucketCount::Int {
+            sample_count,
+            buckets,
+        } = h.counts
+        else {
+            panic!("expected integer bucket counts");
+        };
+        assert_eq!(sample_count, Some(3));
+        assert_eq!(buckets.len(), 2);
+        assert_eq!(buckets[0].count, 1);
+        assert_eq!(buckets[0].upper_bound, 1.0);
+        assert_eq!(buckets[1].count, 3);
+        assert!(buckets[1].upper_bound.is_infinite());
+    }
+
+    #[test]
+    fn classic_float_histogram() {
+        // The `*_float` count fields mark the histogram as float-valued.
+        let value = translate_histogram(
+            MetricType::HISTOGRAM,
+            Histogram {
+                sample_count_float: Some(3.0),
+                sample_sum: Some(6.5),
+                bucket: vec![Bucket {
+                    cumulative_count_float: Some(2.5),
+                    upper_bound: Some(1.0),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        let MetricValue::Histogram(h) = value else {
+            panic!("expected a classic histogram");
+        };
+        let BucketCount::Float {
+            sample_count,
+            buckets,
+        } = h.counts
+        else {
+            panic!("expected float bucket counts");
+        };
+        assert_eq!(sample_count, Some(3.0));
+        assert_eq!(buckets[0].count, 2.5);
+    }
+
+    #[test]
+    fn gauge_histogram_distinguished_by_family_type() {
+        // Identical fields to a classic histogram — only the family type
+        // tells them apart.
+        let value = translate_histogram(
+            MetricType::GAUGE_HISTOGRAM,
+            Histogram {
+                sample_count: Some(1),
+                bucket: vec![Bucket {
+                    cumulative_count: Some(1),
+                    upper_bound: Some(f64::INFINITY),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        assert!(matches!(value, MetricValue::GaugeHistogram(_)));
+    }
+
+    #[test]
+    fn native_integer_histogram() {
+        // No buckets + a schema => native; `*_delta` => integer counts.
+        let value = translate_histogram(
+            MetricType::HISTOGRAM,
+            Histogram {
+                schema: Some(2),
+                zero_threshold: Some(0.001),
+                zero_count: Some(4),
+                sample_count: Some(10),
+                sample_sum: Some(42.0),
+                positive_span: vec![BucketSpan {
+                    offset: Some(1),
+                    length: Some(2),
+                    ..Default::default()
+                }],
+                positive_delta: vec![3, -1],
+                ..Default::default()
+            },
+        );
+        let MetricValue::NativeHistogram(h) = value else {
+            panic!("expected a native histogram");
+        };
+        assert_eq!(h.schema, 2);
+        assert_eq!(h.zero_threshold, 0.001);
+        let NativeCounts::Int {
+            sample_count,
+            zero_count,
+            positive_spans,
+            positive_deltas,
+            ..
+        } = h.counts
+        else {
+            panic!("expected integer native counts");
+        };
+        assert_eq!(sample_count, Some(10));
+        assert_eq!(zero_count, 4);
+        assert_eq!(positive_spans.len(), 1);
+        assert_eq!(positive_spans[0].offset, 1);
+        assert_eq!(positive_spans[0].length, 2);
+        assert_eq!(positive_deltas, vec![3, -1]);
+    }
+
+    #[test]
+    fn native_float_histogram() {
+        // `*_count` / `*_float` fields => float native counts.
+        let value = translate_histogram(
+            MetricType::HISTOGRAM,
+            Histogram {
+                schema: Some(0),
+                zero_count_float: Some(1.5),
+                sample_count_float: Some(5.0),
+                positive_span: vec![BucketSpan {
+                    offset: Some(0),
+                    length: Some(1),
+                    ..Default::default()
+                }],
+                positive_count: vec![2.5],
+                ..Default::default()
+            },
+        );
+        let MetricValue::NativeHistogram(h) = value else {
+            panic!("expected a native histogram");
+        };
+        let NativeCounts::Float {
+            sample_count,
+            zero_count,
+            positive_counts,
+            ..
+        } = h.counts
+        else {
+            panic!("expected float native counts");
+        };
+        assert_eq!(sample_count, Some(5.0));
+        assert_eq!(zero_count, 1.5);
+        assert_eq!(positive_counts, vec![2.5]);
+    }
+
+    #[test]
+    fn hybrid_histogram() {
+        // Buckets *and* a schema => both halves are present.
+        let value = translate_histogram(
+            MetricType::HISTOGRAM,
+            Histogram {
+                sample_count: Some(7),
+                sample_sum: Some(12.0),
+                bucket: vec![Bucket {
+                    cumulative_count: Some(7),
+                    upper_bound: Some(f64::INFINITY),
+                    ..Default::default()
+                }],
+                schema: Some(3),
+                zero_count: Some(1),
+                positive_span: vec![BucketSpan {
+                    offset: Some(0),
+                    length: Some(1),
+                    ..Default::default()
+                }],
+                positive_delta: vec![2],
+                ..Default::default()
+            },
+        );
+        let MetricValue::HybridHistogram { classic, native } = value else {
+            panic!("expected a hybrid histogram");
+        };
+        assert!(matches!(classic.counts, BucketCount::Int { .. }));
+        assert_eq!(native.schema, 3);
+        assert!(matches!(native.counts, NativeCounts::Int { .. }));
+    }
 }
