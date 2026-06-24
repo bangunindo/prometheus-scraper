@@ -81,7 +81,7 @@ mod tests {
         );
     }
 
-    use crate::owned::{BucketCount, MetricValue, NativeCounts};
+    use crate::owned::{BucketCount, MetricValue, NativeCounts, Number};
     use crate::proto::{Bucket, BucketSpan, Histogram};
 
     /// Round-trip a single-metric histogram family through the wire and the
@@ -129,7 +129,7 @@ mod tests {
         let MetricValue::Histogram(h) = value else {
             panic!("expected a classic histogram");
         };
-        assert_eq!(h.sample_sum, Some(6.5));
+        assert_eq!(h.sample_sum, Some(Number::Float(6.5)));
         let BucketCount::Int {
             sample_count,
             buckets,

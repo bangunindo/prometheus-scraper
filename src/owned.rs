@@ -4,8 +4,38 @@ pub struct Timestamp {
     pub nanos: i32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Number {
+    Int(i64),
+    Float(f64),
+}
+
+impl Number {
+    pub fn as_f64(self) -> f64 {
+        match self {
+            Number::Int(i) => i as f64,
+            Number::Float(f) => f,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UnsignedNumber {
+    Uint(u64),
+    Float(f64),
+}
+
+impl UnsignedNumber {
+    pub fn as_f64(self) -> f64 {
+        match self {
+            UnsignedNumber::Uint(u) => u as f64,
+            UnsignedNumber::Float(f) => f,
+        }
+    }
+}
+
 pub struct Counter {
-    pub value: f64,
+    pub value: UnsignedNumber,
     pub exemplar: Option<Exemplar>,
     #[cfg(not(feature = "chrono"))]
     pub created_timestamp: Option<Timestamp>,
@@ -15,7 +45,7 @@ pub struct Counter {
 
 pub struct Summary {
     pub sample_count: Option<u64>,
-    pub sample_sum: Option<f64>,
+    pub sample_sum: Option<Number>,
     pub quantile: Vec<Quantile>,
     #[cfg(not(feature = "chrono"))]
     pub created_timestamp: Option<Timestamp>,
@@ -24,7 +54,7 @@ pub struct Summary {
 }
 
 pub struct Histogram {
-    pub sample_sum: Option<f64>,
+    pub sample_sum: Option<Number>,
     pub counts: BucketCount,
     #[cfg(not(feature = "chrono"))]
     pub created_timestamp: Option<Timestamp>,
@@ -40,7 +70,7 @@ pub struct BucketSpan {
 pub struct NativeHistogram {
     pub schema: i32,
     pub zero_threshold: f64,
-    pub sample_sum: Option<f64>,
+    pub sample_sum: Option<Number>,
     pub counts: NativeCounts,
     pub exemplars: Vec<Exemplar>,
     #[cfg(not(feature = "chrono"))]
@@ -68,11 +98,25 @@ pub enum NativeCounts {
     },
 }
 
+pub struct Info {
+    /// The info label set (the payload). The sample value is always 1.
+    pub labels: Vec<LabelPair>,
+}
+
+pub struct State {
+    pub name: String,
+    pub enabled: bool,
+}
+
+pub struct StateSet {
+    pub states: Vec<State>,
+}
+
 pub enum MetricValue {
     Counter(Counter),
-    Gauge(f64),
+    Gauge(Number),
     Summary(Summary),
-    Untyped(f64),
+    Untyped(Number),
     Histogram(Histogram),
     GaugeHistogram(Histogram),
     NativeHistogram(NativeHistogram),
@@ -80,6 +124,8 @@ pub enum MetricValue {
         classic: Histogram,
         native: NativeHistogram,
     },
+    StateSet(StateSet),
+    Info(Info),
 }
 
 pub enum MetricType {
@@ -91,6 +137,8 @@ pub enum MetricType {
     GaugeHistogram,
     NativeHistogram,
     HybridHistogram,
+    StateSet,
+    Info,
 }
 
 pub enum BucketCount {

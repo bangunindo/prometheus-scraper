@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 pub struct Counter<'a> {
-    pub value: f64,
+    pub value: super::owned::UnsignedNumber,
     pub exemplar: Option<Exemplar<'a>>,
     #[cfg(not(feature = "chrono"))]
     pub created_timestamp: Option<super::owned::Timestamp>,
@@ -20,7 +20,7 @@ impl Counter<'_> {
 }
 
 pub struct Histogram<'a> {
-    pub sample_sum: Option<f64>,
+    pub sample_sum: Option<super::owned::Number>,
     pub counts: BucketCount<'a>,
     #[cfg(not(feature = "chrono"))]
     pub created_timestamp: Option<super::owned::Timestamp>,
@@ -41,7 +41,7 @@ impl Histogram<'_> {
 pub struct NativeHistogram<'a> {
     pub schema: i32,
     pub zero_threshold: f64,
-    pub sample_sum: Option<f64>,
+    pub sample_sum: Option<super::owned::Number>,
     pub counts: super::owned::NativeCounts,
     pub exemplars: Vec<Exemplar<'a>>,
     #[cfg(not(feature = "chrono"))]
@@ -67,11 +67,49 @@ impl NativeHistogram<'_> {
     }
 }
 
+pub struct Info<'a> {
+    pub labels: Vec<LabelPair<'a>>,
+}
+
+impl Info<'_> {
+    pub fn into_owned(self) -> super::owned::Info {
+        super::owned::Info {
+            labels: self.labels.into_iter().map(LabelPair::into_owned).collect(),
+        }
+    }
+}
+
+pub struct State<'a> {
+    pub name: Cow<'a, str>,
+    pub enabled: bool,
+}
+
+impl State<'_> {
+    pub fn into_owned(self) -> super::owned::State {
+        super::owned::State {
+            name: self.name.into_owned(),
+            enabled: self.enabled,
+        }
+    }
+}
+
+pub struct StateSet<'a> {
+    pub states: Vec<State<'a>>,
+}
+
+impl StateSet<'_> {
+    pub fn into_owned(self) -> super::owned::StateSet {
+        super::owned::StateSet {
+            states: self.states.into_iter().map(State::into_owned).collect(),
+        }
+    }
+}
+
 pub enum MetricValue<'a> {
     Counter(Counter<'a>),
-    Gauge(f64),
+    Gauge(super::owned::Number),
     Summary(super::owned::Summary),
-    Untyped(f64),
+    Untyped(super::owned::Number),
     Histogram(Histogram<'a>),
     GaugeHistogram(Histogram<'a>),
     NativeHistogram(NativeHistogram<'a>),
@@ -79,6 +117,8 @@ pub enum MetricValue<'a> {
         classic: Histogram<'a>,
         native: NativeHistogram<'a>,
     },
+    StateSet(StateSet<'a>),
+    Info(Info<'a>),
 }
 
 impl MetricValue<'_> {
@@ -101,6 +141,8 @@ impl MetricValue<'_> {
                     native: native.into_owned(),
                 }
             }
+            MetricValue::StateSet(v) => super::owned::MetricValue::StateSet(v.into_owned()),
+            MetricValue::Info(v) => super::owned::MetricValue::Info(v.into_owned()),
         }
     }
 }

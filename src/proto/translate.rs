@@ -202,7 +202,7 @@ fn proto_translate_classic_histogram<'a>(
         }
     };
     Ok(Histogram {
-        sample_sum: histogram.sample_sum,
+        sample_sum: histogram.sample_sum.map(owned::Number::Float),
         counts,
         created_timestamp: proto_translate_ts(
             histogram.created_timestamp.is_set(),
@@ -265,7 +265,7 @@ fn proto_translate_native_histogram<'a>(
             .schema
             .ok_or_else(|| Error::MissingField("Histogram: schema".into()))?,
         zero_threshold: histogram.zero_threshold.unwrap_or(0.0),
-        sample_sum: histogram.sample_sum,
+        sample_sum: histogram.sample_sum.map(owned::Number::Float),
         counts,
         exemplars: histogram
             .exemplars
@@ -290,16 +290,17 @@ fn proto_translate_metric<'a>(
         .map(proto_translate_label)
         .collect::<Result<Vec<_>, _>>()?;
     let value = if view.gauge.is_set() {
-        MetricValue::Gauge(
+        MetricValue::Gauge(owned::Number::Float(
             view.gauge
                 .value
                 .ok_or_else(|| Error::MissingField("Gauge: value".into()))?,
-        )
+        ))
     } else if view.counter.is_set() {
-        let value = view
-            .counter
-            .value
-            .ok_or_else(|| Error::MissingField("Counter: value".into()))?;
+        let value = owned::UnsignedNumber::Float(
+            view.counter
+                .value
+                .ok_or_else(|| Error::MissingField("Counter: value".into()))?,
+        );
         MetricValue::Counter(Counter {
             created_timestamp: proto_translate_ts(
                 view.counter.created_timestamp.is_set(),
@@ -315,7 +316,7 @@ fn proto_translate_metric<'a>(
     } else if view.summary.is_set() {
         MetricValue::Summary(owned::Summary {
             sample_count: view.summary.sample_count,
-            sample_sum: view.summary.sample_sum,
+            sample_sum: view.summary.sample_sum.map(owned::Number::Float),
             created_timestamp: proto_translate_ts(
                 view.summary.created_timestamp.is_set(),
                 view.summary.created_timestamp.seconds,
@@ -361,11 +362,11 @@ fn proto_translate_metric<'a>(
             }
         }
     } else if view.untyped.is_set() {
-        MetricValue::Untyped(
+        MetricValue::Untyped(owned::Number::Float(
             view.untyped
                 .value
                 .ok_or_else(|| Error::MissingField("Untyped: value".into()))?,
-        )
+        ))
     } else {
         return Err(Error::MissingField(
             "Metric: gauge, counter, summary, histogram, or untyped".into(),
