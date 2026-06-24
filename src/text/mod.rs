@@ -26,8 +26,10 @@
 //!   `\"` (the OpenMetrics superset; classic HELP only ever uses the first two).
 //! * **Timestamps** are unit-correct per the [`TextFormat`] passed to
 //!   [`parse_family`]: classic Prometheus trailing timestamps are milliseconds,
-//!   OpenMetrics timestamps are seconds. `_created` and exemplar timestamps are
-//!   always seconds (both are OpenMetrics-only features).
+//!   OpenMetrics timestamps are seconds, and [`TextFormat::Guess`] auto-detects
+//!   each one (a fractional value is unambiguously seconds; a plain integer is
+//!   resolved by proximity to the current time). `_created` and exemplar
+//!   timestamps are always seconds (both are OpenMetrics-only features).
 //!
 //! Native and hybrid histograms cannot be represented in text (they are
 //! protobuf-only), so [`parse_family`] never produces those variants.
@@ -61,9 +63,8 @@ type Ts = owned::Timestamp;
 #[cfg(feature = "chrono")]
 type Ts = chrono::DateTime<chrono::Utc>;
 
-/// Which text exposition dialect is being parsed. Names the standard only where
-/// the dialects diverge in a way that affects correctness (currently: timestamp
-/// units). The grammar accepted is otherwise the permissive union of both.
+/// How to interpret the unit of a trailing sample timestamp. The dialects only
+/// diverge here; the grammar accepted is otherwise the permissive union of both.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextFormat {
     /// Classic Prometheus text format (`text/plain; version=0.0.4`). Trailing
@@ -72,6 +73,20 @@ pub enum TextFormat {
     /// OpenMetrics text format (`application/openmetrics-text; version=1.0.0`).
     /// Timestamps are (possibly fractional) seconds since the Unix epoch.
     OpenMetrics,
+    /// Dialect unknown — resolve each trailing timestamp on its own:
+    ///
+    /// * A **fractional** value (decimal point or exponent) can't be a classic
+    ///   `int64` millisecond timestamp, so it is read as OpenMetrics seconds
+    ///   exactly — not a guess.
+    /// * A plain **integer** is interpreted as *both* milliseconds and seconds,
+    ///   keeping whichever lands closer to the current system time.
+    ///
+    /// That integer case is a heuristic — reliable for timestamps near "now",
+    /// but it can misjudge values far in the past or future, and it makes
+    /// parsing depend on the wall clock. Prefer [`Prometheus`](Self::Prometheus)
+    /// / [`OpenMetrics`](Self::OpenMetrics) when the content type is known.
+    /// `_created` and exemplar timestamps are unaffected (always seconds).
+    Guess,
 }
 
 // ---------------------------------------------------------------------------
@@ -484,6 +499,15 @@ struct NumberToken {
     uint_value: Option<u64>,
 }
 
+impl NumberToken {
+    /// Whether the token was written as a plain integer (no decimal point or
+    /// exponent). Only such a token could be a classic-Prometheus millisecond
+    /// timestamp, which is parsed as an `int64`.
+    fn is_integer(&self) -> bool {
+        self.int_value.is_some() || self.uint_value.is_some()
+    }
+}
+
 /// Parse one whitespace-delimited numeric token, keeping its raw integer-ness.
 /// Fails (recoverably) on a non-numeric token so callers can backtrack — e.g.
 /// the optional timestamp slot stepping aside for an exemplar's `#`.
@@ -563,7 +587,36 @@ fn convert_ts(format: TextFormat, t: &NumberToken) -> Ts {
         TextFormat::OpenMetrics => seconds_to_ts(t.float),
         // Classic Prometheus trailing timestamps are integer milliseconds.
         TextFormat::Prometheus => seconds_to_ts(t.float / 1000.0),
+        TextFormat::Guess => {
+            if !t.is_integer() {
+                // A decimal point or exponent rules out a classic int64
+                // millisecond timestamp, so this is unambiguously OpenMetrics
+                // seconds — no need to guess.
+                seconds_to_ts(t.float)
+            } else if let Some(now) = now_unix_seconds() {
+                let as_seconds = t.float; // OpenMetrics reading
+                let as_millis = t.float / 1000.0; // classic Prometheus reading
+                // Keep whichever lands closer to "now"; a tie favours seconds.
+                if (as_millis - now).abs() < (as_seconds - now).abs() {
+                    seconds_to_ts(as_millis)
+                } else {
+                    seconds_to_ts(as_seconds)
+                }
+            } else {
+                // No usable clock to compare against: fall back to OpenMetrics.
+                seconds_to_ts(t.float)
+            }
+        }
     }
+}
+
+/// Current wall-clock time as fractional Unix seconds, or `None` if the system
+/// clock is set before the epoch.
+fn now_unix_seconds() -> Option<f64> {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_secs_f64())
 }
 
 fn seconds_to_ts(secs: f64) -> Ts {
@@ -1238,6 +1291,44 @@ mod tests {
         let om = parse_family("# TYPE g gauge\ng 1 1604676851\n", TextFormat::OpenMetrics).unwrap();
         assert!(prom.metric[0].timestamp.is_some());
         assert_eq!(prom.metric[0].timestamp, om.metric[0].timestamp);
+    }
+
+    #[test]
+    fn guess_resolves_each_unit_by_proximity_to_now() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now_s = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        // The same recent instant written as OpenMetrics seconds and as classic
+        // milliseconds. Guess should read each in its own unit, so both parses
+        // land on the same timestamp.
+        let secs_text = format!("# TYPE g gauge\ng 1 {now_s}\n");
+        let millis_text = format!("# TYPE g gauge\ng 1 {}\n", now_s * 1000);
+
+        let secs = parse_family(&secs_text, TextFormat::Guess).unwrap();
+        let millis = parse_family(&millis_text, TextFormat::Guess).unwrap();
+        assert!(secs.metric[0].timestamp.is_some());
+        assert_eq!(secs.metric[0].timestamp, millis.metric[0].timestamp);
+
+        // And it agrees with the explicit seconds dialect.
+        let explicit = parse_family(&secs_text, TextFormat::OpenMetrics).unwrap();
+        assert_eq!(secs.metric[0].timestamp, explicit.metric[0].timestamp);
+    }
+
+    #[test]
+    fn guess_reads_fractional_timestamp_as_seconds() {
+        // 1700000000000.5 read as milliseconds would land near "now" and so win
+        // the proximity heuristic — but the decimal point proves it can't be a
+        // classic int64 ms timestamp, so Guess must read it as seconds instead.
+        let text = "# TYPE g gauge\ng 1 1700000000000.5\n";
+        let guessed = parse_family(text, TextFormat::Guess).unwrap();
+        let as_seconds = parse_family(text, TextFormat::OpenMetrics).unwrap();
+        let as_millis = parse_family(text, TextFormat::Prometheus).unwrap();
+
+        assert_eq!(guessed.metric[0].timestamp, as_seconds.metric[0].timestamp);
+        assert_ne!(guessed.metric[0].timestamp, as_millis.metric[0].timestamp);
     }
 
     #[test]
