@@ -7,6 +7,7 @@ edition = "2024"
 buffa = "0.7"
 buffa-types = "0.7"
 chrono = { version = "0.4", default-features = false, features = ["std"], optional = true }
+nom = "8.0.0"
 
 [features]
 default = ["chrono"]

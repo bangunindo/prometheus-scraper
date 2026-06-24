@@ -1,5 +1,5 @@
 #[cfg(not(feature = "chrono"))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Timestamp {
     pub seconds: i64,
     pub nanos: i32,
@@ -138,7 +138,7 @@ pub enum MetricValue {
     Info(Info),
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MetricType {
     Counter,
     Gauge,

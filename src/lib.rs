@@ -7,12 +7,16 @@ pub mod text;
 
 pub use proto::parse_family as proto_parse_family;
 pub use text::parse_family as text_parse_family;
+pub use text::TextFormat;
 
 #[derive(Debug)]
 pub enum Error {
     MissingField(String),
     InvalidFieldValue((String, String)),
     ProtoDecodeError(buffa::DecodeError),
+    /// A text-exposition line that could not be parsed as a sample. Carries the
+    /// offending line (without its trailing newline).
+    InvalidLine(String),
 }
 
 impl fmt::Display for Error {
@@ -23,6 +27,7 @@ impl fmt::Display for Error {
                 write!(f, "invalid field value: {} = {}", field, value)
             }
             Error::ProtoDecodeError(err) => write!(f, "protobuf decode error: {}", err),
+            Error::InvalidLine(line) => write!(f, "invalid text exposition line: {}", line),
         }
     }
 }
