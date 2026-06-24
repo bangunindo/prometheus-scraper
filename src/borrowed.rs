@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+#[derive(Debug)]
 pub struct Counter<'a> {
     pub value: super::owned::UnsignedNumber,
     pub exemplar: Option<Exemplar<'a>>,
@@ -19,6 +20,7 @@ impl Counter<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct Histogram<'a> {
     pub sample_sum: Option<super::owned::Number>,
     pub counts: BucketCount<'a>,
@@ -38,6 +40,7 @@ impl Histogram<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct NativeHistogram<'a> {
     pub schema: i32,
     pub zero_threshold: f64,
@@ -67,6 +70,7 @@ impl NativeHistogram<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct Info<'a> {
     pub labels: Vec<LabelPair<'a>>,
 }
@@ -79,6 +83,7 @@ impl Info<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct State<'a> {
     pub name: Cow<'a, str>,
     pub enabled: bool,
@@ -93,6 +98,7 @@ impl State<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct StateSet<'a> {
     pub states: Vec<State<'a>>,
 }
@@ -105,6 +111,7 @@ impl StateSet<'_> {
     }
 }
 
+#[derive(Debug)]
 pub enum MetricValue<'a> {
     Counter(Counter<'a>),
     Gauge(super::owned::Number),
@@ -147,6 +154,7 @@ impl MetricValue<'_> {
     }
 }
 
+#[derive(Debug)]
 pub enum BucketCount<'a> {
     Int {
         sample_count: Option<u64>,
@@ -179,6 +187,7 @@ impl BucketCount<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct BucketFloat<'a> {
     pub cumulative_count: f64,
     pub upper_bound: f64,
@@ -195,6 +204,7 @@ impl BucketFloat<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct BucketInt<'a> {
     pub cumulative_count: u64,
     pub upper_bound: f64,
@@ -211,6 +221,7 @@ impl BucketInt<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct Exemplar<'a> {
     pub label: Vec<LabelPair<'a>>,
     pub value: f64,
@@ -230,6 +241,7 @@ impl Exemplar<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct LabelPair<'a> {
     pub name: Cow<'a, str>,
     pub value: Cow<'a, str>,
@@ -244,6 +256,7 @@ impl LabelPair<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct Metric<'a> {
     pub label: Vec<LabelPair<'a>>,
     pub value: MetricValue<'a>,
@@ -263,6 +276,7 @@ impl Metric<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct MetricFamily<'a> {
     pub name: Cow<'a, str>,
     pub help: Option<Cow<'a, str>>,

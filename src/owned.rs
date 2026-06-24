@@ -1,4 +1,5 @@
 #[cfg(not(feature = "chrono"))]
+#[derive(Debug, Clone)]
 pub struct Timestamp {
     pub seconds: i64,
     pub nanos: i32,
@@ -34,6 +35,7 @@ impl UnsignedNumber {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Counter {
     pub value: UnsignedNumber,
     pub exemplar: Option<Exemplar>,
@@ -43,6 +45,7 @@ pub struct Counter {
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Summary {
     pub sample_count: Option<u64>,
     pub sample_sum: Option<Number>,
@@ -53,6 +56,7 @@ pub struct Summary {
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Histogram {
     pub sample_sum: Option<Number>,
     pub counts: BucketCount,
@@ -62,11 +66,13 @@ pub struct Histogram {
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct BucketSpan {
     pub offset: i32,
     pub length: u32,
 }
 
+#[derive(Debug, Clone)]
 pub struct NativeHistogram {
     pub schema: i32,
     pub zero_threshold: f64,
@@ -79,6 +85,7 @@ pub struct NativeHistogram {
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[derive(Debug, Clone)]
 pub enum NativeCounts {
     Int {
         sample_count: Option<u64>,
@@ -98,20 +105,23 @@ pub enum NativeCounts {
     },
 }
 
+#[derive(Debug, Clone)]
 pub struct Info {
-    /// The info label set (the payload). The sample value is always 1.
     pub labels: Vec<LabelPair>,
 }
 
+#[derive(Debug, Clone)]
 pub struct State {
     pub name: String,
     pub enabled: bool,
 }
 
+#[derive(Debug, Clone)]
 pub struct StateSet {
     pub states: Vec<State>,
 }
 
+#[derive(Debug, Clone)]
 pub enum MetricValue {
     Counter(Counter),
     Gauge(Number),
@@ -128,6 +138,7 @@ pub enum MetricValue {
     Info(Info),
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum MetricType {
     Counter,
     Gauge,
@@ -141,6 +152,7 @@ pub enum MetricType {
     Info,
 }
 
+#[derive(Debug, Clone)]
 pub enum BucketCount {
     Int {
         sample_count: Option<u64>,
@@ -152,18 +164,21 @@ pub enum BucketCount {
     },
 }
 
+#[derive(Debug, Clone)]
 pub struct BucketFloat {
     pub cumulative_count: f64,
     pub upper_bound: f64,
     pub exemplar: Option<Exemplar>,
 }
 
+#[derive(Debug, Clone)]
 pub struct BucketInt {
     pub cumulative_count: u64,
     pub upper_bound: f64,
     pub exemplar: Option<Exemplar>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Exemplar {
     pub label: Vec<LabelPair>,
     pub value: f64,
@@ -173,16 +188,19 @@ pub struct Exemplar {
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Quantile {
     pub quantile: f64,
     pub value: f64,
 }
 
+#[derive(Debug, Clone)]
 pub struct LabelPair {
     pub name: String,
     pub value: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct Metric {
     pub label: Vec<LabelPair>,
     pub value: MetricValue,
@@ -192,6 +210,7 @@ pub struct Metric {
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct MetricFamily {
     pub name: String,
     pub help: Option<String>,
