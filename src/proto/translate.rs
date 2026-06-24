@@ -45,26 +45,36 @@ fn proto_infer_type(view: &MetricFamilyView) -> Result<owned::MetricType, Error>
     }
 }
 
+fn normalize_ts(seconds: &mut i64, nanos: &mut i32) {
+    if *nanos < 0 || *nanos >= 1_000_000_000 {
+        let extra_seconds = nanos.div_euclid(1_000_000_000);
+        let extra_nanos = nanos.rem_euclid(1_000_000_000);
+        *seconds = seconds.saturating_add(extra_seconds as i64);
+        *nanos = extra_nanos;
+    }
+}
+
 #[cfg(not(feature = "chrono"))]
-fn proto_translate_ts(is_set: bool, seconds: i64, nanos: i32) -> Option<owned::Timestamp> {
+fn proto_translate_ts(is_set: bool, mut seconds: i64, mut nanos: i32) -> Option<owned::Timestamp> {
     if !is_set {
         return None;
     }
+    normalize_ts(&mut seconds, &mut nanos);
     Some(owned::Timestamp { seconds, nanos })
 }
 
 #[cfg(feature = "chrono")]
 fn proto_translate_ts(
     is_set: bool,
-    seconds: i64,
-    nanos: i32,
+    mut seconds: i64,
+    mut nanos: i32,
 ) -> Option<chrono::DateTime<chrono::Utc>> {
     use chrono::TimeZone;
     if !is_set {
         return None;
     }
-    let nanos = if nanos < 0 { 0 } else { nanos as u32 };
-    chrono::Utc.timestamp_opt(seconds, nanos).single()
+    normalize_ts(&mut seconds, &mut nanos);
+    chrono::Utc.timestamp_opt(seconds, nanos as u32).single()
 }
 
 #[cfg(not(feature = "chrono"))]
