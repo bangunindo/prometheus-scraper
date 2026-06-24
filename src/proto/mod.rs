@@ -36,6 +36,7 @@ use buffa::MessageView;
 pub(crate) use generated::*;
 
 mod translate;
+pub(crate) mod scan;
 
 pub fn parse_family(bytes: &[u8]) -> Result<crate::borrowed::MetricFamily<'_>, crate::Error> {
     let view = MetricFamilyView::decode_view(bytes).map_err(crate::Error::ProtoDecodeError)?;

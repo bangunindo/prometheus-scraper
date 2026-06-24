@@ -2,9 +2,13 @@ use std::fmt;
 
 pub mod borrowed;
 pub mod owned;
+pub mod payload;
 pub mod proto;
 pub mod text;
 
+mod frame;
+
+pub use payload::{Decoder, Format, parse as parse_payload};
 pub use proto::parse_family as proto_parse_family;
 pub use text::parse_family as text_parse_family;
 pub use text::TextFormat;
@@ -17,6 +21,11 @@ pub enum Error {
     /// A text-exposition line that could not be parsed as a sample. Carries the
     /// offending line (without its trailing newline).
     InvalidLine(String),
+    /// A text-exposition frame that was not valid UTF-8.
+    InvalidUtf8(std::str::Utf8Error),
+    /// A frame that could not be delimited: a protobuf length prefix that was
+    /// malformed, or a frame truncated at end of input.
+    IncompleteFrame,
 }
 
 impl fmt::Display for Error {
@@ -28,6 +37,8 @@ impl fmt::Display for Error {
             }
             Error::ProtoDecodeError(err) => write!(f, "protobuf decode error: {}", err),
             Error::InvalidLine(line) => write!(f, "invalid text exposition line: {}", line),
+            Error::InvalidUtf8(err) => write!(f, "invalid UTF-8 in text frame: {}", err),
+            Error::IncompleteFrame => write!(f, "incomplete or malformed frame"),
         }
     }
 }

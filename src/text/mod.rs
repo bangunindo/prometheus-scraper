@@ -55,6 +55,8 @@ use crate::borrowed::{
 };
 use crate::owned::{self, MetricType};
 
+pub(crate) mod scan;
+
 /// The crate's timestamp representation, mirroring the `borrowed`/`owned`
 /// structs: a `chrono` instant when the feature is on, plain seconds+nanos
 /// otherwise.
@@ -124,6 +126,22 @@ pub fn parse_family(text: &str, format: TextFormat) -> Result<MetricFamily<'_>, 
         metric,
         unit: header.unit,
     })
+}
+
+/// For the frame scanner ([`scan`]): the family name a single descriptor line
+/// (`# TYPE` / `# HELP` / `# UNIT`) declares, or `None` for any other line
+/// (samples, `# EOF`, plain comments, blanks).
+pub(super) fn descriptor_name(line: &str) -> Option<Cow<'_, str>> {
+    descriptor_line(line).ok().map(|(_, d)| d.name)
+}
+
+/// For the frame scanner ([`scan`]): the metric name of a single sample line,
+/// in either the `name{…}` or `{"name",…}` form, or `None` if it doesn't parse
+/// as a sample (e.g. an anonymous `{…}` sample with no name token).
+pub(super) fn sample_name(line: &str) -> Option<Cow<'_, str>> {
+    metric_and_labels(line.trim_start())
+        .ok()
+        .and_then(|(_, (name, _))| name)
 }
 
 /// The parsed metadata header of a single metric family.

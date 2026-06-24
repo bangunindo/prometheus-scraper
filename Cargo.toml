@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 buffa = "0.7"
 buffa-types = "0.7"
+bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["std"], optional = true }
 nom = "8.0.0"
 
