@@ -3,11 +3,16 @@ use std::fmt;
 pub mod borrowed;
 pub mod owned;
 pub mod proto;
+pub mod text;
+
+pub use proto::parse_family as proto_parse_family;
+pub use text::parse_family as text_parse_family;
 
 #[derive(Debug)]
 pub enum Error {
     MissingField(String),
     InvalidFieldValue((String, String)),
+    ProtoDecodeError(buffa::DecodeError),
 }
 
 impl fmt::Display for Error {
@@ -17,6 +22,7 @@ impl fmt::Display for Error {
             Error::InvalidFieldValue((field, value)) => {
                 write!(f, "invalid field value: {} = {}", field, value)
             }
+            Error::ProtoDecodeError(err) => write!(f, "protobuf decode error: {}", err),
         }
     }
 }

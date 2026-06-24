@@ -32,6 +32,12 @@ mod generated {
     include!("gen/io.prometheus.client.mod.rs");
 }
 
+use buffa::MessageView;
 pub(crate) use generated::*;
 
 mod translate;
+
+pub fn parse_family(bytes: &[u8]) -> Result<crate::borrowed::MetricFamily<'_>, crate::Error> {
+    let view = MetricFamilyView::decode_view(bytes).map_err(crate::Error::ProtoDecodeError)?;
+    crate::borrowed::MetricFamily::try_from(view)
+}
