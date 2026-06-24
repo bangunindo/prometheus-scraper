@@ -8,13 +8,19 @@ pub mod text;
 
 mod frame;
 
+#[cfg(any(feature = "client", feature = "client-native-tls"))]
+pub mod client;
+
 pub use payload::{Decoder, Format, parse as parse_payload};
 pub use proto::parse_family as proto_parse_family;
 pub use text::parse_family as text_parse_family;
 pub use text::TextFormat;
 
+#[cfg(any(feature = "client", feature = "client-native-tls"))]
+pub use client::{Client, ClientBuilder, ScrapeError};
+
 #[derive(Debug)]
-pub enum Error {
+pub enum ParseError {
     MissingField(String),
     InvalidFieldValue((String, String)),
     ProtoDecodeError(buffa::DecodeError),
@@ -28,22 +34,22 @@ pub enum Error {
     IncompleteFrame,
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::MissingField(field) => write!(f, "missing required field: {}", field),
-            Error::InvalidFieldValue((field, value)) => {
+            ParseError::MissingField(field) => write!(f, "missing required field: {}", field),
+            ParseError::InvalidFieldValue((field, value)) => {
                 write!(f, "invalid field value: {} = {}", field, value)
             }
-            Error::ProtoDecodeError(err) => write!(f, "protobuf decode error: {}", err),
-            Error::InvalidLine(line) => write!(f, "invalid text exposition line: {}", line),
-            Error::InvalidUtf8(err) => write!(f, "invalid UTF-8 in text frame: {}", err),
-            Error::IncompleteFrame => write!(f, "incomplete or malformed frame"),
+            ParseError::ProtoDecodeError(err) => write!(f, "protobuf decode error: {}", err),
+            ParseError::InvalidLine(line) => write!(f, "invalid text exposition line: {}", line),
+            ParseError::InvalidUtf8(err) => write!(f, "invalid UTF-8 in text frame: {}", err),
+            ParseError::IncompleteFrame => write!(f, "incomplete or malformed frame"),
         }
     }
 }
 
-impl std::error::Error for Error {}
+impl std::error::Error for ParseError {}
 
 #[cfg(test)]
 mod tests {

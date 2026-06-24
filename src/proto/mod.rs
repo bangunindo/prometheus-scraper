@@ -38,7 +38,7 @@ pub(crate) use generated::*;
 mod translate;
 pub(crate) mod scan;
 
-pub fn parse_family(bytes: &[u8]) -> Result<crate::borrowed::MetricFamily<'_>, crate::Error> {
-    let view = MetricFamilyView::decode_view(bytes).map_err(crate::Error::ProtoDecodeError)?;
+pub fn parse_family(bytes: &[u8]) -> Result<crate::borrowed::MetricFamily<'_>, crate::ParseError> {
+    let view = MetricFamilyView::decode_view(bytes).map_err(crate::ParseError::ProtoDecodeError)?;
     crate::borrowed::MetricFamily::try_from(view)
 }

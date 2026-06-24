@@ -14,7 +14,7 @@
 //! `NeedMore` is the streaming "feed me more bytes" signal — it is control flow,
 //! never an [`Error`].
 
-use crate::Error;
+use crate::ParseError;
 use crate::proto::scan::ProtoScanner;
 use crate::text::scan::TextScanner;
 
@@ -32,7 +32,7 @@ pub(crate) enum FrameStep<'a> {
     /// The framing itself failed. `consumed > 0` means "skip these bytes and
     /// resync at the next frame"; `consumed == 0` means unrecoverable, so the
     /// caller emits the error and then stops.
-    Error { consumed: usize, error: Error },
+    Error { consumed: usize, error: ParseError },
 }
 
 pub(crate) trait FrameScanner {

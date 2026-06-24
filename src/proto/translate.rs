@@ -7,7 +7,7 @@
 
 use std::borrow::Cow;
 
-use crate::Error;
+use crate::ParseError;
 use crate::borrowed::{
     BucketCount, BucketFloat, BucketInt, Counter, Exemplar, Histogram, LabelPair, Metric,
     MetricFamily, MetricValue, NativeHistogram,
@@ -19,7 +19,7 @@ use super::{
     MetricView,
 };
 
-fn proto_infer_type(view: &MetricFamilyView) -> Result<owned::MetricType, Error> {
+fn proto_infer_type(view: &MetricFamilyView) -> Result<owned::MetricType, ParseError> {
     match view.r#type {
         Some(MetricType::Counter) => Ok(owned::MetricType::Counter),
         Some(MetricType::Gauge) => Ok(owned::MetricType::Gauge),
@@ -41,7 +41,7 @@ fn proto_infer_type(view: &MetricFamilyView) -> Result<owned::MetricType, Error>
             }
         }
         Some(MetricType::GaugeHistogram) => Ok(owned::MetricType::GaugeHistogram),
-        None => Err(Error::MissingField("MetricFamily: type".into())),
+        None => Err(ParseError::MissingField("MetricFamily: type".into())),
     }
 }
 
@@ -91,12 +91,12 @@ fn proto_translate_ts_ms(ts: Option<i64>) -> Option<chrono::DateTime<chrono::Utc
     ts.and_then(|ts| chrono::Utc.timestamp_millis_opt(ts).single())
 }
 
-fn proto_translate_label<'a>(label: &LabelPairView<'a>) -> Result<LabelPair<'a>, Error> {
+fn proto_translate_label<'a>(label: &LabelPairView<'a>) -> Result<LabelPair<'a>, ParseError> {
     Ok(LabelPair {
         name: Cow::Borrowed(
             label
                 .name
-                .ok_or_else(|| Error::MissingField("LabelPair: name".into()))?,
+                .ok_or_else(|| ParseError::MissingField("LabelPair: name".into()))?,
         ),
         value: Cow::Borrowed(label.value.unwrap_or("")),
     })
@@ -105,18 +105,18 @@ fn proto_translate_label<'a>(label: &LabelPairView<'a>) -> Result<LabelPair<'a>,
 fn proto_translate_exemplar<'a>(
     is_set: bool,
     exemplar: &ExemplarView<'a>,
-) -> Result<Option<Exemplar<'a>>, Error> {
+) -> Result<Option<Exemplar<'a>>, ParseError> {
     if !is_set {
         return Ok(None);
     }
     proto_translate_exemplar_inner(exemplar).map(Some)
 }
 
-fn proto_translate_exemplar_inner<'a>(exemplar: &ExemplarView<'a>) -> Result<Exemplar<'a>, Error> {
+fn proto_translate_exemplar_inner<'a>(exemplar: &ExemplarView<'a>) -> Result<Exemplar<'a>, ParseError> {
     Ok(Exemplar {
         value: exemplar
             .value
-            .ok_or_else(|| Error::MissingField("Exemplar: value".into()))?,
+            .ok_or_else(|| ParseError::MissingField("Exemplar: value".into()))?,
         timestamp: proto_translate_ts(
             exemplar.timestamp.is_set(),
             exemplar.timestamp.seconds,
@@ -130,7 +130,7 @@ fn proto_translate_exemplar_inner<'a>(exemplar: &ExemplarView<'a>) -> Result<Exe
     })
 }
 
-fn proto_translate_bucket_span(span: &BucketSpanView<'_>) -> Result<owned::BucketSpan, Error> {
+fn proto_translate_bucket_span(span: &BucketSpanView<'_>) -> Result<owned::BucketSpan, ParseError> {
     // A no-op span is `(offset 0, length 0)`, and proto2 may elide either
     // scalar when it equals its default, so an absent field is a genuine 0
     // rather than missing data.
@@ -145,7 +145,7 @@ fn proto_translate_bucket_span(span: &BucketSpanView<'_>) -> Result<owned::Bucke
 /// `Histogram`/`GaugeHistogram` and as the classic half of a hybrid.
 fn proto_translate_classic_histogram<'a>(
     histogram: &HistogramView<'a>,
-) -> Result<Histogram<'a>, Error> {
+) -> Result<Histogram<'a>, ParseError> {
     // Float histograms carry their counts in the `*_float` fields; integer
     // histograms use the plain ones. The presence of a float count anywhere
     // is what marks the whole histogram as float.
@@ -165,11 +165,11 @@ fn proto_translate_classic_histogram<'a>(
                             .cumulative_count_float
                             .or_else(|| bucket.cumulative_count.map(|count| count as f64))
                             .ok_or_else(|| {
-                                Error::MissingField("Bucket: cumulative_count".into())
+                                ParseError::MissingField("Bucket: cumulative_count".into())
                             })?,
                         upper_bound: bucket
                             .upper_bound
-                            .ok_or_else(|| Error::MissingField("Bucket: upper_bound".into()))?,
+                            .ok_or_else(|| ParseError::MissingField("Bucket: upper_bound".into()))?,
                         exemplar: proto_translate_exemplar(
                             bucket.exemplar.is_set(),
                             &bucket.exemplar,
@@ -187,11 +187,11 @@ fn proto_translate_classic_histogram<'a>(
                 .map(|bucket| {
                     Ok(BucketInt {
                         cumulative_count: bucket.cumulative_count.ok_or_else(|| {
-                            Error::MissingField("Bucket: cumulative_count".into())
+                            ParseError::MissingField("Bucket: cumulative_count".into())
                         })?,
                         upper_bound: bucket
                             .upper_bound
-                            .ok_or_else(|| Error::MissingField("Bucket: upper_bound".into()))?,
+                            .ok_or_else(|| ParseError::MissingField("Bucket: upper_bound".into()))?,
                         exemplar: proto_translate_exemplar(
                             bucket.exemplar.is_set(),
                             &bucket.exemplar,
@@ -217,7 +217,7 @@ fn proto_translate_classic_histogram<'a>(
 /// its own for `NativeHistogram` and as the native half of a hybrid.
 fn proto_translate_native_histogram<'a>(
     histogram: &HistogramView<'a>,
-) -> Result<NativeHistogram<'a>, Error> {
+) -> Result<NativeHistogram<'a>, ParseError> {
     // Integer native histograms encode counts as deltas (`*_delta`), float
     // ones as absolute counts (`*_count`); the float-typed fields likewise
     // mark the histogram as float.
@@ -263,7 +263,7 @@ fn proto_translate_native_histogram<'a>(
     Ok(NativeHistogram {
         schema: histogram
             .schema
-            .ok_or_else(|| Error::MissingField("Histogram: schema".into()))?,
+            .ok_or_else(|| ParseError::MissingField("Histogram: schema".into()))?,
         zero_threshold: histogram.zero_threshold.unwrap_or(0.0),
         sample_sum: histogram.sample_sum.map(owned::Number::Float),
         counts,
@@ -283,7 +283,7 @@ fn proto_translate_native_histogram<'a>(
 fn proto_translate_metric<'a>(
     view: &MetricView<'a>,
     family_type: &owned::MetricType,
-) -> Result<Metric<'a>, Error> {
+) -> Result<Metric<'a>, ParseError> {
     let label = view
         .label
         .iter()
@@ -293,13 +293,13 @@ fn proto_translate_metric<'a>(
         MetricValue::Gauge(owned::Number::Float(
             view.gauge
                 .value
-                .ok_or_else(|| Error::MissingField("Gauge: value".into()))?,
+                .ok_or_else(|| ParseError::MissingField("Gauge: value".into()))?,
         ))
     } else if view.counter.is_set() {
         let value = owned::UnsignedNumber::Float(
             view.counter
                 .value
-                .ok_or_else(|| Error::MissingField("Counter: value".into()))?,
+                .ok_or_else(|| ParseError::MissingField("Counter: value".into()))?,
         );
         MetricValue::Counter(Counter {
             created_timestamp: proto_translate_ts(
@@ -330,10 +330,10 @@ fn proto_translate_metric<'a>(
                     Ok(owned::Quantile {
                         quantile: q
                             .quantile
-                            .ok_or_else(|| Error::MissingField("Summary: quantile".into()))?,
+                            .ok_or_else(|| ParseError::MissingField("Summary: quantile".into()))?,
                         value: q
                             .value
-                            .ok_or_else(|| Error::MissingField("Summary: value".into()))?,
+                            .ok_or_else(|| ParseError::MissingField("Summary: value".into()))?,
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?,
@@ -365,10 +365,10 @@ fn proto_translate_metric<'a>(
         MetricValue::Untyped(owned::Number::Float(
             view.untyped
                 .value
-                .ok_or_else(|| Error::MissingField("Untyped: value".into()))?,
+                .ok_or_else(|| ParseError::MissingField("Untyped: value".into()))?,
         ))
     } else {
-        return Err(Error::MissingField(
+        return Err(ParseError::MissingField(
             "Metric: gauge, counter, summary, histogram, or untyped".into(),
         ));
     };
@@ -380,7 +380,7 @@ fn proto_translate_metric<'a>(
 }
 
 impl<'a> TryFrom<MetricFamilyView<'a>> for MetricFamily<'a> {
-    type Error = Error;
+    type Error = ParseError;
 
     fn try_from(value: MetricFamilyView<'a>) -> Result<Self, Self::Error> {
         let r#type = proto_infer_type(&value)?;
@@ -393,7 +393,7 @@ impl<'a> TryFrom<MetricFamilyView<'a>> for MetricFamily<'a> {
             name: Cow::Borrowed(
                 value
                     .name
-                    .ok_or_else(|| Error::MissingField("MetricFamily: name".into()))?,
+                    .ok_or_else(|| ParseError::MissingField("MetricFamily: name".into()))?,
             ),
             help: value.help.map(Cow::Borrowed),
             r#type,

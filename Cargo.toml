@@ -4,12 +4,24 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-stream = { version = "0.3", optional = true }
 buffa = "0.7"
 buffa-types = "0.7"
 bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["std"], optional = true }
+futures-core = { version = "0.3", optional = true, default-features = false }
+futures-util = { version = "0.3", optional = true, default-features = false, features = ["std"] }
 nom = "8.0.0"
+reqwest = { version = "0.13", default-features = false, optional = true }
 
 [features]
 default = ["chrono"]
 chrono = ["dep:chrono"]
+# Async scrape client over rustls (the portable default backend).
+client = ["dep:reqwest", "dep:async-stream", "dep:futures-core", "dep:futures-util", "reqwest/stream", "reqwest/rustls"]
+# Same client, but using the platform's native TLS stack instead of rustls.
+client-native-tls = ["dep:reqwest", "dep:async-stream", "dep:futures-core", "dep:futures-util", "reqwest/stream", "reqwest/native-tls"]
+
+[dev-dependencies]
+futures-util = { version = "0.3" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util", "time"] }

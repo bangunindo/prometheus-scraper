@@ -48,7 +48,7 @@ use nom::{
     sequence::{delimited, preceded},
 };
 
-use crate::Error;
+use crate::ParseError;
 use crate::borrowed::{
     BucketCount, BucketFloat, BucketInt, Counter, Exemplar, Histogram, Info, LabelPair, Metric,
     MetricFamily, MetricValue, State, StateSet,
@@ -102,9 +102,9 @@ pub enum TextFormat {
 /// milliseconds, while OpenMetrics timestamps are fractional seconds.
 /// (`_created` and exemplar timestamps are always seconds — both are
 /// OpenMetrics-only features.)
-pub fn parse_family(text: &str, format: TextFormat) -> Result<MetricFamily<'_>, Error> {
+pub fn parse_family(text: &str, format: TextFormat) -> Result<MetricFamily<'_>, ParseError> {
     let (rest, header) = parse_header(text)
-        .map_err(|_| Error::InvalidLine(text.lines().next().unwrap_or("").to_string()))?;
+        .map_err(|_| ParseError::InvalidLine(text.lines().next().unwrap_or("").to_string()))?;
     let samples = parse_samples(rest)?;
     let family_type = header.r#type.unwrap_or(MetricType::Untyped);
 
@@ -287,7 +287,7 @@ struct Sample<'a> {
 ///
 /// Blank lines and bare comment lines are skipped; an `# EOF` marker ends the
 /// block early.
-fn parse_samples(rest: &str) -> Result<Vec<Sample<'_>>, Error> {
+fn parse_samples(rest: &str) -> Result<Vec<Sample<'_>>, ParseError> {
     let mut samples = Vec::new();
     for raw in rest.split('\n') {
         let line = raw.strip_suffix('\r').unwrap_or(raw);
@@ -302,9 +302,9 @@ fn parse_samples(rest: &str) -> Result<Vec<Sample<'_>>, Error> {
             continue; // any other comment line
         }
         let (leftover, sample) =
-            sample_line(line).map_err(|_| Error::InvalidLine(line.to_string()))?;
+            sample_line(line).map_err(|_| ParseError::InvalidLine(line.to_string()))?;
         if !leftover.is_empty() {
-            return Err(Error::InvalidLine(line.to_string()));
+            return Err(ParseError::InvalidLine(line.to_string()));
         }
         samples.push(sample);
     }
@@ -1352,7 +1352,7 @@ mod tests {
     #[test]
     fn malformed_value_is_an_error() {
         let err = parse_family("# TYPE g gauge\ng abc\n", TextFormat::OpenMetrics).unwrap_err();
-        assert!(matches!(err, Error::InvalidLine(_)));
+        assert!(matches!(err, ParseError::InvalidLine(_)));
     }
 
     #[test]

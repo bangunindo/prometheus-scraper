@@ -16,7 +16,7 @@
 
 use bytes::{Buf, BytesMut};
 
-use crate::Error;
+use crate::ParseError;
 use crate::borrowed::MetricFamily;
 use crate::frame::{FrameStep, Scanner};
 use crate::owned;
@@ -44,10 +44,10 @@ fn scanner_for(format: Format) -> Scanner {
 }
 
 /// Parse one already-framed family's bytes into a borrowed [`MetricFamily`].
-fn parse_frame(format: Format, bytes: &[u8]) -> Result<MetricFamily<'_>, Error> {
+fn parse_frame(format: Format, bytes: &[u8]) -> Result<MetricFamily<'_>, ParseError> {
     match format {
         Format::Text(tf) => {
-            let text = std::str::from_utf8(bytes).map_err(Error::InvalidUtf8)?;
+            let text = std::str::from_utf8(bytes).map_err(ParseError::InvalidUtf8)?;
             crate::text::parse_family(text, tf)
         }
         Format::Protobuf => crate::proto::parse_family(bytes),
@@ -80,7 +80,7 @@ pub struct Families<'a> {
 }
 
 impl<'a> Iterator for Families<'a> {
-    type Item = Result<MetricFamily<'a>, Error>;
+    type Item = Result<MetricFamily<'a>, ParseError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let rest: &'a [u8] = &self.buf[self.cursor..];
@@ -171,7 +171,7 @@ impl Decoder {
     /// Returns `None` when more input is needed (push more, then call again) or
     /// the stream is exhausted. The returned family borrows `self`, so it must
     /// be consumed before the next call.
-    pub fn next_family(&mut self) -> Option<Result<MetricFamily<'_>, Error>> {
+    pub fn next_family(&mut self) -> Option<Result<MetricFamily<'_>, ParseError>> {
         if self.failed {
             return None;
         }
@@ -202,7 +202,7 @@ impl Decoder {
     ///
     /// Unlike [`next_family`](Self::next_family) the result owns its data, so
     /// families can be collected across calls (see [`iter_owned`](Self::iter_owned)).
-    pub fn next_owned(&mut self) -> Option<Result<owned::MetricFamily, Error>> {
+    pub fn next_owned(&mut self) -> Option<Result<owned::MetricFamily, ParseError>> {
         if self.failed {
             return None;
         }
@@ -230,7 +230,7 @@ impl Decoder {
     /// Borrow the decoder as an [`Iterator`] of owned families, draining what is
     /// currently buffered (and the trailing family once [`finish`](Self::finish)
     /// has been called).
-    pub fn iter_owned(&mut self) -> impl Iterator<Item = Result<owned::MetricFamily, Error>> + '_ {
+    pub fn iter_owned(&mut self) -> impl Iterator<Item = Result<owned::MetricFamily, ParseError>> + '_ {
         std::iter::from_fn(move || self.next_owned())
     }
 }
@@ -268,7 +268,7 @@ mod tests {
         let results: Vec<_> = parse(payload.as_bytes(), om()).collect();
         assert_eq!(results.len(), 3);
         assert!(results[0].is_ok());
-        assert!(matches!(results[1], Err(Error::InvalidLine(_))));
+        assert!(matches!(results[1], Err(ParseError::InvalidLine(_))));
         assert!(results[2].is_ok());
     }
 
@@ -411,7 +411,7 @@ mod tests {
         buf.pop(); // drop the last body byte
         let results: Vec<_> = parse(&buf, Format::Protobuf).collect();
         assert_eq!(results.len(), 1);
-        assert!(matches!(results[0], Err(Error::IncompleteFrame)));
+        assert!(matches!(results[0], Err(ParseError::IncompleteFrame)));
     }
 
     #[test]

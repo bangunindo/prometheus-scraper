@@ -12,7 +12,7 @@
 //! normally and let the parse step report the decode error — the stream resyncs
 //! at the next frame.
 
-use crate::Error;
+use crate::ParseError;
 use crate::frame::{FrameScanner, FrameStep};
 
 pub(crate) struct ProtoScanner;
@@ -59,7 +59,7 @@ impl FrameScanner for ProtoScanner {
                 if at_eof {
                     FrameStep::Error {
                         consumed: buf.len(),
-                        error: Error::IncompleteFrame,
+                        error: ParseError::IncompleteFrame,
                     }
                 } else {
                     FrameStep::NeedMore
@@ -68,21 +68,21 @@ impl FrameScanner for ProtoScanner {
             // No length means no way to resync — stop.
             Varint::Invalid => FrameStep::Error {
                 consumed: 0,
-                error: Error::IncompleteFrame,
+                error: ParseError::IncompleteFrame,
             },
             Varint::Ok { value, len } => {
                 // Guard the `value as usize` cast (32-bit) and the offset add.
                 let Some(total) = usize::try_from(value).ok().and_then(|m| len.checked_add(m)) else {
                     return FrameStep::Error {
                         consumed: 0,
-                        error: Error::IncompleteFrame,
+                        error: ParseError::IncompleteFrame,
                     };
                 };
                 if buf.len() < total {
                     if at_eof {
                         FrameStep::Error {
                             consumed: buf.len(),
-                            error: Error::IncompleteFrame,
+                            error: ParseError::IncompleteFrame,
                         }
                     } else {
                         FrameStep::NeedMore
