@@ -5,6 +5,7 @@ edition = "2024"
 description = "Parse the Prometheus / OpenMetrics text and protobuf exposition formats, with an optional async scrape client"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+repository = "https://github.com/bangunindo/prometheus-scraper"
 keywords = ["prometheus", "openmetrics", "metrics", "parser", "scrape"]
 categories = ["parser-implementations", "encoding"]
 
