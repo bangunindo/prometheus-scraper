@@ -1,7 +1,7 @@
 //! A permissive parser for the Prometheus / OpenMetrics text exposition format.
 //!
 //! [`parse_family`] turns one already-separated metric-family block of text into
-//! a [`borrowed::MetricFamily`](crate::borrowed::MetricFamily). [`parse_header`]
+//! a [`borrowed::MetricFamily`](MetricFamily). [`parse_header`]
 //! handles just the leading `# TYPE` / `# HELP` / `# UNIT` lines.
 //!
 //! The parser is deliberately the *union* of every Prometheus and OpenMetrics
@@ -640,11 +640,11 @@ fn assemble<'a>(
 }
 
 /// Gauge / unknown: one metric per line, no grouping.
-fn scalar_metrics<'a>(
+fn scalar_metrics(
     format: TextFormat,
     ty: MetricType,
-    samples: Vec<Sample<'a>>,
-) -> Vec<Metric<'a>> {
+    samples: Vec<Sample>,
+) -> Vec<Metric> {
     samples
         .into_iter()
         .map(|s| {
@@ -665,7 +665,7 @@ fn scalar_metrics<'a>(
 
 /// Info: one metric per `_info` line; the line's labels become the info
 /// payload and the metric carries no identifying labels of its own.
-fn info_metrics<'a>(format: TextFormat, samples: Vec<Sample<'a>>) -> Vec<Metric<'a>> {
+fn info_metrics(format: TextFormat, samples: Vec<Sample>) -> Vec<Metric> {
     samples
         .into_iter()
         .map(|s| Metric {
@@ -846,12 +846,12 @@ fn grouped_metrics<'a>(
 
 /// Build a classic [`Histogram`] from the accumulated parts. The whole
 /// histogram is integer-valued unless any count carried a fractional value.
-fn build_histogram<'a>(
+fn build_histogram(
     sum: Option<NumberToken>,
     count: Option<NumberToken>,
-    buckets: Vec<BucketAcc<'a>>,
+    buckets: Vec<BucketAcc>,
     created: Option<Ts>,
-) -> Histogram<'a> {
+) -> Histogram {
     let all_int = buckets.iter().all(|b| b.count.uint_value.is_some())
         && count.is_none_or(|c| c.uint_value.is_some());
 
