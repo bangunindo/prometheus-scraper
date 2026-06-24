@@ -1,6 +1,6 @@
 [package]
 name = "prometheus-scraper"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Parse the Prometheus / OpenMetrics text and protobuf exposition formats, with an optional async scrape client"
 license = "MIT OR Apache-2.0"
@@ -16,8 +16,8 @@ all-features = true
 
 [dependencies]
 async-stream = { version = "0.3", optional = true }
-buffa = "0.7"
-buffa-types = "0.7"
+buffa = { version = "0.7", default-features = false }
+buffa-types = { version = "0.7", default-features = false }
 bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["std"], optional = true }
 futures-core = { version = "0.3", optional = true, default-features = false }
