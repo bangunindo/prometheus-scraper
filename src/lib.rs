@@ -1,3 +1,96 @@
+//! Parse the Prometheus / OpenMetrics exposition formats — both the text and
+//! the protobuf dialects — into typed Rust values, with an optional async client
+//! that scrapes an endpoint and streams the results.
+//!
+//! # Quick start
+//!
+//! Parse a whole scrape body (a *payload* — a sequence of metric families):
+//!
+//! ```
+//! use prometheus_scraper::{parse_payload, Format, TextFormat};
+//!
+//! let body = b"# TYPE http_requests counter\n\
+//!              http_requests_total{code=\"200\"} 1027\n";
+//!
+//! for family in parse_payload(body, Format::Text(TextFormat::Prometheus)) {
+//!     let family = family?; // each family parses independently
+//!     println!("{} ({:?})", family.name, family.r#type);
+//!     for metric in &family.metric {
+//!         println!("  {:?}", metric.value);
+//!     }
+//! }
+//! # Ok::<(), prometheus_scraper::ParseError>(())
+//! ```
+//!
+#![cfg_attr(
+    feature = "client",
+    doc = r#"With the `client` feature, [`Client`] scrapes an endpoint over HTTP and
+streams the parsed families:
+
+```no_run
+# async fn run() -> Result<(), prometheus_scraper::ScrapeError> {
+use futures_util::StreamExt;
+
+let client = prometheus_scraper::Client::builder("http://localhost:9100/metrics")
+    .build()?;
+let mut families = client.scrape().await?;
+while let Some(family) = families.next().await {
+    let family = family?;
+    println!("{}", family.name);
+}
+# Ok(())
+# }
+```
+"#
+)]
+#![cfg_attr(
+    not(any(feature = "client", feature = "client-native-tls")),
+    doc = "Enable the `client` feature for an async HTTP scrape client that streams \
+           parsed families straight from an endpoint."
+)]
+//!
+//! # How it is layered
+//!
+//! Each layer builds on the one below it; pick the entry point that matches how
+//! your bytes arrive.
+//!
+//! | You have… | Use | Yields |
+//! | --- | --- | --- |
+//! | one already-separated family (text) | [`text_parse_family`] | a borrowed family |
+//! | one length-delimited message (protobuf) | [`proto_parse_family`] | a borrowed family |
+//! | a complete payload in memory | [`parse_payload`] | a lazy iterator of borrowed families |
+//! | bytes arriving in chunks (Sans-I/O) | [`Decoder`] | families pulled as they complete |
+//! | a URL to scrape | `Client` *(feature)* | an async stream of owned families |
+//!
+//! A *payload* is a sequence of families; the [`Format`] selects the dialect
+//! (text vs protobuf) and is the only thing the higher layers need to be told.
+//! Parsing is **resilient**: one malformed family yields a single [`ParseError`]
+//! and parsing resumes at the next one, rather than failing the whole payload.
+//!
+//! # Borrowed vs. owned
+//!
+//! Parsing is zero-copy. Every parser returns a [`borrowed::MetricFamily`], whose
+//! strings borrow directly from the input buffer — no allocation per label.
+//! When you need a value that outlives the buffer (to store, send across threads,
+//! or return), call [`into_owned`](borrowed::MetricFamily::into_owned) to get the
+//! matching [`owned::MetricFamily`]. The [`Decoder`] and the async `Client`
+//! expose owned-result methods ([`next_owned`](Decoder::next_owned) and
+//! `Client::scrape`) so you do not have to manage the borrow yourself.
+//!
+//! # Cargo features
+//!
+//! - **`chrono`** *(default)* — represent timestamps as
+//!   [`chrono::DateTime<Utc>`](chrono::DateTime). Without it, timestamps are a
+//!   plain `owned::Timestamp` (`seconds` + `nanos`) and the crate has no
+//!   non-`std` dependencies beyond the parser.
+//! - **`client`** — the async `Client`, built on `reqwest` with the portable
+//!   `rustls` TLS backend.
+//! - **`client-native-tls`** — the same client over the platform's native TLS
+//!   stack instead of `rustls`.
+//!
+//! The protobuf format unlocks native and hybrid histograms, which cannot be
+//! expressed in the text format; see [`owned::MetricValue`].
+
 use std::fmt;
 
 pub mod borrowed;
@@ -19,10 +112,19 @@ pub use text::TextFormat;
 #[cfg(any(feature = "client", feature = "client-native-tls"))]
 pub use client::{Client, ClientBuilder, ScrapeError};
 
+/// Everything that can go wrong while parsing a single metric family.
+///
+/// These are *per-family*: the payload iterators ([`parse_payload`], [`Decoder`])
+/// surface one of these for a malformed family and then continue with the next,
+/// so a single bad family never discards the rest of a scrape.
 #[derive(Debug)]
 pub enum ParseError {
+    /// A required protobuf field was absent from the message.
     MissingField(String),
+    /// A field held a value outside its allowed range or shape, given as
+    /// `(field, value)`.
     InvalidFieldValue((String, String)),
+    /// The protobuf message body could not be decoded (corrupt wire bytes).
     ProtoDecodeError(buffa::DecodeError),
     /// A text-exposition line that could not be parsed as a sample. Carries the
     /// offending line (without its trailing newline).

@@ -2,6 +2,16 @@
 name = "prometheus-scraper"
 version = "0.1.0"
 edition = "2024"
+description = "Parse the Prometheus / OpenMetrics text and protobuf exposition formats, with an optional async scrape client"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["prometheus", "openmetrics", "metrics", "parser", "scrape"]
+categories = ["parser-implementations", "encoding"]
+
+[package.metadata.docs.rs]
+# Build the published docs with every feature so the client API (and its
+# crate-level example) render.
+all-features = true
 
 [dependencies]
 async-stream = { version = "0.3", optional = true }

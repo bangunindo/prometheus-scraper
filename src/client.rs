@@ -1,8 +1,8 @@
 //! Layer 3 — an async HTTP scrape client (feature `client` / `client-native-tls`).
 //!
 //! [`Client`] fetches a Prometheus / OpenMetrics endpoint and streams the parsed
-//! [`owned::MetricFamily`](crate::owned::MetricFamily) values out, wrapping the
-//! incremental [`Decoder`](crate::Decoder) over a reqwest response body. Build
+//! [`owned::MetricFamily`] values out, wrapping the
+//! incremental [`Decoder`] over a reqwest response body. Build
 //! one with [`Client::builder`] and reuse it for many scrapes:
 //!
 //! ```no_run

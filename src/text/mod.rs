@@ -1,8 +1,7 @@
 //! A permissive parser for the Prometheus / OpenMetrics text exposition format.
 //!
 //! [`parse_family`] turns one already-separated metric-family block of text into
-//! a [`borrowed::MetricFamily`](MetricFamily). [`parse_header`]
-//! handles just the leading `# TYPE` / `# HELP` / `# UNIT` lines.
+//! a [`borrowed::MetricFamily`](MetricFamily).
 //!
 //! The parser is deliberately the *union* of every Prometheus and OpenMetrics
 //! text dialect, leaning to the most permissive reading wherever the specs

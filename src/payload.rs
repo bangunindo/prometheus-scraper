@@ -134,6 +134,9 @@ pub struct Decoder {
 }
 
 impl Decoder {
+    /// Create an empty decoder for the given [`Format`]. Feed it with
+    /// [`push`](Self::push) and drain it with [`next_owned`](Self::next_owned) /
+    /// [`next_family`](Self::next_family).
     pub fn new(format: Format) -> Self {
         Decoder {
             buf: BytesMut::new(),

@@ -1,3 +1,17 @@
+//! The borrowed, zero-copy data model — what every parser returns.
+//!
+//! Each type here mirrors its counterpart in [`crate::owned`], but string fields
+//! are [`Cow<'a, str>`](std::borrow::Cow) that borrow straight from the input
+//! buffer (`Cow::Owned` only where an escape sequence forced an allocation). That
+//! makes parsing allocation-light, but ties every family to the `&'a [u8]` it was
+//! parsed from.
+//!
+//! When a value must outlive that buffer — to store it, send it across threads,
+//! or return it — call [`into_owned`](MetricFamily::into_owned) (or rely on
+//! [`From`]) to convert to the matching [`owned`](crate::owned) type. The
+//! [`Decoder`](crate::Decoder) and the async `Client` expose owned-result
+//! methods so callers usually never touch the lifetime directly.
+
 use std::borrow::Cow;
 
 #[derive(Debug)]
@@ -276,6 +290,10 @@ impl Metric<'_> {
     }
 }
 
+/// A group of metrics sharing a name, type, and metadata, borrowing from the
+/// parsed buffer. The root type every parser yields; see the
+/// [module docs](self) for the borrowing contract and
+/// [`into_owned`](Self::into_owned) to detach from the buffer.
 #[derive(Debug)]
 pub struct MetricFamily<'a> {
     pub name: Cow<'a, str>,
@@ -286,6 +304,9 @@ pub struct MetricFamily<'a> {
 }
 
 impl MetricFamily<'_> {
+    /// Convert into an [`owned::MetricFamily`](super::owned::MetricFamily),
+    /// copying every borrowed string so the result no longer references the
+    /// input buffer.
     pub fn into_owned(self) -> super::owned::MetricFamily {
         super::owned::MetricFamily {
             name: self.name.into_owned(),
