@@ -36,6 +36,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use nom::{
+    Err, IResult, Parser,
     branch::alt,
     bytes::complete::{tag, take_till, take_till1},
     character::complete::{char, line_ending, space0, space1},
@@ -43,15 +44,14 @@ use nom::{
     error::{Error as NomError, ErrorKind},
     multi::many0,
     sequence::{delimited, preceded},
-    Err, IResult, Parser,
 };
 
+use crate::Error;
 use crate::borrowed::{
     BucketCount, BucketFloat, BucketInt, Counter, Exemplar, Histogram, Info, LabelPair, Metric,
     MetricFamily, MetricValue, State, StateSet,
 };
 use crate::owned::{self, MetricType};
-use crate::Error;
 
 /// The crate's timestamp representation, mirroring the `borrowed`/`owned`
 /// structs: a `chrono` instant when the feature is on, plain seconds+nanos
@@ -117,13 +117,13 @@ pub fn parse_family(text: &str, format: TextFormat) -> Result<MetricFamily<'_>, 
 /// all, in which case the caller derives the name from the first sample line
 /// and treats the type as [`MetricType::Untyped`].
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct FamilyHeader<'a> {
+struct FamilyHeader<'a> {
     /// Family name, taken from the first descriptor line seen.
-    pub name: Option<Cow<'a, str>>,
-    pub help: Option<Cow<'a, str>>,
-    pub unit: Option<Cow<'a, str>>,
+    name: Option<Cow<'a, str>>,
+    help: Option<Cow<'a, str>>,
+    unit: Option<Cow<'a, str>>,
     /// `None` when no `# TYPE` line was present.
-    pub r#type: Option<MetricType>,
+    r#type: Option<MetricType>,
 }
 
 /// Parse the leading `# TYPE` / `# HELP` / `# UNIT` lines of an
@@ -131,7 +131,7 @@ pub struct FamilyHeader<'a> {
 ///
 /// Returns the assembled [`FamilyHeader`] and the remaining input, which
 /// begins at the first non-descriptor line (the samples).
-pub(crate) fn parse_header(input: &str) -> IResult<&str, FamilyHeader<'_>> {
+fn parse_header(input: &str) -> IResult<&str, FamilyHeader<'_>> {
     let (rest, descriptors) = many0(descriptor_line).parse(input)?;
 
     let mut header = FamilyHeader::default();
@@ -820,9 +820,12 @@ fn grouped_metrics<'a>(
                     quantile: acc.quantiles,
                     created_timestamp: acc.created,
                 }),
-                MetricType::Histogram => {
-                    MetricValue::Histogram(build_histogram(acc.sum, acc.count, acc.buckets, acc.created))
-                }
+                MetricType::Histogram => MetricValue::Histogram(build_histogram(
+                    acc.sum,
+                    acc.count,
+                    acc.buckets,
+                    acc.created,
+                )),
                 MetricType::GaugeHistogram => MetricValue::GaugeHistogram(build_histogram(
                     acc.sum,
                     acc.count,
@@ -1213,8 +1216,11 @@ mod tests {
 
     #[test]
     fn no_labels_and_trailing_timestamp() {
-        let fam = parse_family("# TYPE g gauge\ng 12.47 1604676851\n", TextFormat::OpenMetrics)
-            .unwrap();
+        let fam = parse_family(
+            "# TYPE g gauge\ng 12.47 1604676851\n",
+            TextFormat::OpenMetrics,
+        )
+        .unwrap();
         let m = one(&fam.metric);
         assert!(m.label.is_empty());
         assert!(m.timestamp.is_some());
@@ -1224,8 +1230,11 @@ mod tests {
     fn timestamp_units_differ_by_format() {
         // 1604676851000 ms (classic) and 1604676851 s (OpenMetrics) are the
         // same instant — so the two parses must agree.
-        let prom =
-            parse_family("# TYPE g gauge\ng 1 1604676851000\n", TextFormat::Prometheus).unwrap();
+        let prom = parse_family(
+            "# TYPE g gauge\ng 1 1604676851000\n",
+            TextFormat::Prometheus,
+        )
+        .unwrap();
         let om = parse_family("# TYPE g gauge\ng 1 1604676851\n", TextFormat::OpenMetrics).unwrap();
         assert!(prom.metric[0].timestamp.is_some());
         assert_eq!(prom.metric[0].timestamp, om.metric[0].timestamp);
