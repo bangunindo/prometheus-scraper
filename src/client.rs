@@ -35,6 +35,7 @@ use futures_core::Stream;
 use futures_util::{StreamExt, TryStreamExt};
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 
+use crate::borrowed;
 use crate::owned;
 use crate::{Decoder, Format, ParseError, TextFormat};
 
@@ -66,6 +67,9 @@ pub enum ScrapeError {
     Status(reqwest::StatusCode),
     /// A metric family in the response failed to parse.
     Parse(ParseError),
+    /// The per-family callback passed to [`Client::scrape_for_each`] returned an
+    /// error, aborting the scrape.
+    User(Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl fmt::Display for ScrapeError {
@@ -75,6 +79,7 @@ impl fmt::Display for ScrapeError {
             ScrapeError::Http(e) => write!(f, "scrape request failed: {e}"),
             ScrapeError::Status(s) => write!(f, "scrape returned HTTP status {s}"),
             ScrapeError::Parse(e) => write!(f, "failed to parse scraped metrics: {e}"),
+            ScrapeError::User(e) => write!(f, "scrape callback returned an error: {e}"),
         }
     }
 }
@@ -84,6 +89,7 @@ impl std::error::Error for ScrapeError {
         match self {
             ScrapeError::Build(e) | ScrapeError::Http(e) => Some(e),
             ScrapeError::Parse(e) => Some(e),
+            ScrapeError::User(e) => Some(&**e),
             ScrapeError::Status(_) => None,
         }
     }
@@ -294,6 +300,51 @@ impl Client {
         self.scrape().await?.try_collect().await
     }
 
+    /// Scrape the endpoint and invoke `on_family` once for each family, handing it
+    /// a **borrowed** (zero-copy) [`borrowed::MetricFamily`] that aliases the
+    /// internal decode buffer.
+    ///
+    /// Unlike [`scrape`](Self::scrape) this allocates nothing per family (no
+    /// `into_owned`) and never buffers the whole body — chunks are streamed and
+    /// only one family's frame is held at a time. In exchange the callback must be
+    /// **synchronous** (you cannot `.await` while holding a family) and the family
+    /// **must not escape the call** — copy out whatever you need to keep.
+    ///
+    /// Each family is delivered as a `Result`, exactly as with
+    /// [`scrape`](Self::scrape): a malformed family yields `Err(ParseError)` and the
+    /// next family follows (the framing resyncs). Decide per family whether to skip
+    /// it (`let Ok(family) = family else { return Ok(()) }`) or abort (`family?`).
+    /// Returning `Err` from the callback ends the scrape with [`ScrapeError::User`];
+    /// a transport error ends it with [`ScrapeError::Http`].
+    ///
+    /// ```no_run
+    /// # async fn run() -> Result<(), prometheus_scraper::ScrapeError> {
+    /// let client = prometheus_scraper::Client::builder("http://localhost:9100/metrics")
+    ///     .build()?;
+    /// let mut series = 0usize;
+    /// client
+    ///     .scrape_for_each(|family| {
+    ///         let Ok(family) = family else { return Ok(()) };
+    ///         series += family.metric.len();
+    ///         Ok::<_, prometheus_scraper::ParseError>(())
+    ///     })
+    ///     .await?;
+    /// println!("{series} series");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn scrape_for_each<F, E>(&self, on_family: F) -> Result<(), ScrapeError>
+    where
+        F: FnMut(Result<borrowed::MetricFamily<'_>, ParseError>) -> Result<(), E>,
+        E: Into<Box<dyn std::error::Error + Send + Sync>>,
+    {
+        let response = self.send().await?;
+        let format = self
+            .format
+            .unwrap_or_else(|| detect_format(response.headers()));
+        for_each_borrowed(response.bytes_stream(), format, on_family).await
+    }
+
     /// Issue the GET (auth + `Accept` applied), returning the response once the
     /// status line and headers have arrived.
     async fn send(&self) -> Result<reqwest::Response, ScrapeError> {
@@ -380,6 +431,39 @@ fn decode_stream(
             yield family.map_err(ScrapeError::Parse);
         }
     }
+}
+
+/// Drive the incremental [`Decoder`] over a response body, invoking `on_family`
+/// with each borrowed family as it completes — the zero-copy, never-fully-buffered
+/// counterpart to [`decode_stream`]. Factored out of
+/// [`Client::scrape_for_each`] so it can be tested with a fabricated body and no
+/// network; see that method for the borrowing and error semantics.
+async fn for_each_borrowed<S, F, E>(
+    body: S,
+    format: Format,
+    mut on_family: F,
+) -> Result<(), ScrapeError>
+where
+    S: Stream<Item = Result<Bytes, reqwest::Error>>,
+    F: FnMut(Result<borrowed::MetricFamily<'_>, ParseError>) -> Result<(), E>,
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+    futures_util::pin_mut!(body);
+    let mut decoder = Decoder::new(format);
+    while let Some(chunk) = body.next().await {
+        let bytes = chunk.map_err(ScrapeError::Http)?;
+        decoder.push(&bytes);
+        // The borrowed family is dropped when the callback returns, before the next
+        // `next_family()` / `push()` advances the buffer — the lending contract.
+        while let Some(family) = decoder.next_family() {
+            on_family(family).map_err(|e| ScrapeError::User(e.into()))?;
+        }
+    }
+    decoder.finish();
+    while let Some(family) = decoder.next_family() {
+        on_family(family).map_err(|e| ScrapeError::User(e.into()))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -509,5 +593,71 @@ mod tests {
         assert_eq!(families[0].r#type, MetricType::Gauge);
         assert_eq!(families[1].name, "reqs");
         assert_eq!(families[1].r#type, MetricType::Counter);
+    }
+
+    // ---- scrape_for_each / for_each_borrowed ---------------------------
+
+    /// Feed `PAYLOAD` split at `chunk` bytes through `for_each_borrowed`,
+    /// collecting the names of the (borrowed) families the callback observes.
+    async fn for_each_names(chunk: usize) -> Vec<String> {
+        let bytes = PAYLOAD.as_bytes();
+        let parts: Vec<Result<Bytes, reqwest::Error>> = bytes
+            .chunks(chunk)
+            .map(|c| Ok(Bytes::copy_from_slice(c)))
+            .collect();
+        let body = futures_util::stream::iter(parts);
+        let mut names = Vec::new();
+        for_each_borrowed(body, Format::Text(TextFormat::OpenMetrics), |family| {
+            names.push(family?.name.into_owned());
+            Ok::<_, ParseError>(())
+        })
+        .await
+        .unwrap();
+        names
+    }
+
+    #[tokio::test]
+    async fn for_each_borrowed_collects_all() {
+        assert_eq!(for_each_names(PAYLOAD.len()).await, ["a", "b", "c"]);
+    }
+
+    /// Splitting the body at every byte offset must yield the same families — the
+    /// borrowed lending loop has to survive frames straddling chunk boundaries.
+    #[tokio::test]
+    async fn for_each_borrowed_is_chunk_invariant() {
+        for chunk in 1..=PAYLOAD.len() {
+            assert_eq!(for_each_names(chunk).await, ["a", "b", "c"], "chunk size {chunk}");
+        }
+    }
+
+    #[tokio::test]
+    async fn for_each_borrowed_stops_on_user_error() {
+        let body = futures_util::stream::iter(vec![Ok::<_, reqwest::Error>(Bytes::from(PAYLOAD))]);
+        let mut seen = 0;
+        let result = for_each_borrowed(body, Format::Text(TextFormat::OpenMetrics), |family| {
+            family.unwrap();
+            seen += 1;
+            Err::<(), _>("boom")
+        })
+        .await;
+        assert!(matches!(result, Err(ScrapeError::User(_))));
+        assert_eq!(seen, 1, "must abort after the first family");
+    }
+
+    #[tokio::test]
+    async fn for_each_borrowed_delivers_parse_errors() {
+        let payload = "# TYPE a gauge\na 1\n# TYPE b gauge\nb nope\n# TYPE c gauge\nc 3\n";
+        let body = futures_util::stream::iter(vec![Ok::<_, reqwest::Error>(Bytes::from(payload))]);
+        let mut outcomes = Vec::new();
+        for_each_borrowed(body, Format::Text(TextFormat::OpenMetrics), |family| {
+            outcomes.push(family.map(|f| f.name.into_owned()));
+            Ok::<_, ParseError>(())
+        })
+        .await
+        .unwrap();
+        assert_eq!(outcomes.len(), 3);
+        assert_eq!(outcomes[0].as_deref().unwrap(), "a");
+        assert!(matches!(outcomes[1], Err(ParseError::InvalidLine(_))));
+        assert_eq!(outcomes[2].as_deref().unwrap(), "c");
     }
 }
