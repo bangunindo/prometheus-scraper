@@ -1,6 +1,6 @@
 [package]
 name = "prometheus-scraper"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2024"
 description = "Parse the Prometheus / OpenMetrics text and protobuf exposition formats, with an optional async scrape client"
 license = "MIT OR Apache-2.0"
@@ -16,18 +16,22 @@ all-features = true
 
 [dependencies]
 async-stream = { version = "0.3", optional = true }
-buffa = { version = "0.7", default-features = false }
-buffa-types = { version = "0.7", default-features = false }
+buffa = { version = "0.9", default-features = false }
+buffa-types = { version = "0.9", default-features = false }
 bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["std"], optional = true }
 futures-core = { version = "0.3", optional = true, default-features = false }
 futures-util = { version = "0.3", optional = true, default-features = false, features = ["std"] }
 nom = "8.0.0"
 reqwest = { version = "0.13", default-features = false, optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
 default = ["chrono"]
 chrono = ["dep:chrono"]
+# Serialize both data models and deserialize the owned model. Forward serde
+# support to chrono only when chrono is independently enabled.
+serde = ["dep:serde", "chrono?/serde"]
 # Async scrape client over rustls (the portable default backend).
 client = ["dep:reqwest", "dep:async-stream", "dep:futures-core", "dep:futures-util", "reqwest/stream", "reqwest/rustls"]
 # Same client, but using the platform's native TLS stack instead of rustls.
@@ -35,4 +39,5 @@ client-native-tls = ["dep:reqwest", "dep:async-stream", "dep:futures-core", "dep
 
 [dev-dependencies]
 futures-util = { version = "0.3" }
+serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util", "time"] }

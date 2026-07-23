@@ -156,6 +156,7 @@ Numeric values keep the integer-vs-float distinction they were written with (see
 | Feature | Default | Description |
 | --- | :---: | --- |
 | `chrono` | ✅ | Timestamps as [`chrono::DateTime<Utc>`]. Without it, timestamps are a plain `owned::Timestamp` (`seconds` + `nanos`) and the only dependencies are the parser crates. |
+| `serde` | | Serialize borrowed and owned metric models, and deserialize the owned model. |
 | `client` | | The async [`Client`], built on `reqwest` with the portable `rustls` TLS backend. |
 | `client-native-tls` | | The same client over the platform's native TLS stack instead of `rustls`. |
 

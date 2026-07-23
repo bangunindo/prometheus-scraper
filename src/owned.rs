@@ -11,6 +11,9 @@
 //! [`MetricFamily`] is the root. The only structural subtlety is the histogram
 //! family — see [`MetricValue`] for how classic, gauge, native, and hybrid
 //! histograms are distinguished.
+//!
+//! With the `serde` feature, every type in this module implements
+//! `serde::Serialize` and `serde::Deserialize`.
 
 /// A point in time as raw `seconds` + `nanos` since the Unix epoch.
 ///
@@ -18,6 +21,7 @@
 /// with the (default) `chrono` feature, timestamp fields are
 /// [`chrono::DateTime<Utc>`](chrono::DateTime) instead.
 #[cfg(not(feature = "chrono"))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Timestamp {
     pub seconds: i64,
@@ -28,6 +32,7 @@ pub struct Timestamp {
 /// with: `5` decodes as [`Int`](Number::Int), `5.0` as [`Float`](Number::Float).
 ///
 /// Use [`as_f64`](Number::as_f64) when you only need the magnitude.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Number {
     Int(i64),
@@ -46,6 +51,7 @@ impl Number {
 /// Like [`Number`] but for values that cannot be negative (counter totals,
 /// sample counts): an unsigned [`Uint`](UnsignedNumber::Uint) or a
 /// [`Float`](UnsignedNumber::Float).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnsignedNumber {
     Uint(u64),
@@ -61,6 +67,7 @@ impl UnsignedNumber {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Counter {
     pub value: UnsignedNumber,
@@ -71,6 +78,7 @@ pub struct Counter {
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Summary {
     pub sample_count: Option<u64>,
@@ -85,6 +93,7 @@ pub struct Summary {
 /// A classic (explicit-bucket) histogram, also used for gauge histograms. Its
 /// buckets and sample count live in [`counts`](Histogram::counts), which is
 /// integer- or float-valued as a unit.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Histogram {
     pub sample_sum: Option<Number>,
@@ -95,6 +104,7 @@ pub struct Histogram {
     pub created_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct BucketSpan {
     pub offset: i32,
@@ -104,6 +114,7 @@ pub struct BucketSpan {
 /// A Prometheus native (exponential, sparse-bucket) histogram. These are
 /// protobuf-only — the text format cannot express them. Bucket layout is given
 /// by `schema` plus the spans/deltas in [`counts`](NativeHistogram::counts).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct NativeHistogram {
     pub schema: i32,
@@ -119,6 +130,7 @@ pub struct NativeHistogram {
 
 /// The bucket counts of a [`NativeHistogram`], either integer-valued (deltas)
 /// or float-valued (absolute counts). The two are mutually exclusive on the wire.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub enum NativeCounts {
     Int {
@@ -139,17 +151,20 @@ pub enum NativeCounts {
     },
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Info {
     pub labels: Vec<LabelPair>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct State {
     pub name: String,
     pub enabled: bool,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct StateSet {
     pub states: Vec<State>,
@@ -164,6 +179,7 @@ pub struct StateSet {
 /// [`NativeHistogram`](MetricValue::NativeHistogram), and
 /// [`HybridHistogram`](MetricValue::HybridHistogram). Native and hybrid variants
 /// only ever come from the protobuf format; text parsing never produces them.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub enum MetricValue {
     Counter(Counter),
@@ -190,6 +206,7 @@ pub enum MetricValue {
 /// `type` field (protobuf). Determines which [`MetricValue`] variant each metric
 /// in the family carries. An unrecognized or absent type becomes
 /// [`Untyped`](MetricType::Untyped).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MetricType {
     Counter,
@@ -207,6 +224,7 @@ pub enum MetricType {
 /// The buckets and sample count of a classic [`Histogram`]. The whole histogram
 /// is integer-valued unless any bucket or the count carried a fractional value,
 /// in which case it is [`Float`](BucketCount::Float).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub enum BucketCount {
     Int {
@@ -219,6 +237,7 @@ pub enum BucketCount {
     },
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct BucketFloat {
     pub cumulative_count: f64,
@@ -226,6 +245,7 @@ pub struct BucketFloat {
     pub exemplar: Option<Exemplar>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct BucketInt {
     pub cumulative_count: u64,
@@ -233,6 +253,7 @@ pub struct BucketInt {
     pub exemplar: Option<Exemplar>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Exemplar {
     pub label: Vec<LabelPair>,
@@ -243,6 +264,7 @@ pub struct Exemplar {
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Quantile {
     pub quantile: f64,
@@ -250,6 +272,7 @@ pub struct Quantile {
 }
 
 /// A single `name="value"` label.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct LabelPair {
     pub name: String,
@@ -258,6 +281,7 @@ pub struct LabelPair {
 
 /// One measurement within a family: its identifying `label` set, its typed
 /// `value`, and an optional sample `timestamp`.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Metric {
     pub label: Vec<LabelPair>,
@@ -271,6 +295,7 @@ pub struct Metric {
 /// A group of metrics sharing a `name`, `type`, and metadata — the unit a
 /// `# TYPE`/`# HELP` block (text) or one protobuf message describes, and the
 /// thing the payload parsers yield one at a time.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct MetricFamily {
     pub name: String,

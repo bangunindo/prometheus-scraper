@@ -83,6 +83,8 @@ while let Some(family) = families.next().await {
 //!   [`chrono::DateTime<Utc>`](chrono::DateTime). Without it, timestamps are a
 //!   plain `owned::Timestamp` (`seconds` + `nanos`) and the crate has no
 //!   non-`std` dependencies beyond the parser.
+//! - **`serde`** — serialize the borrowed and owned data models, and deserialize
+//!   the owned model.
 //! - **`client`** — the async `Client`, built on `reqwest` with the portable
 //!   `rustls` TLS backend.
 //! - **`client-native-tls`** — the same client over the platform's native TLS

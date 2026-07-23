@@ -11,9 +11,15 @@
 //! [`From`]) to convert to the matching [`owned`](crate::owned) type. The
 //! [`Decoder`](crate::Decoder) and the async `Client` expose owned-result
 //! methods so callers usually never touch the lifetime directly.
+//!
+//! With the `serde` feature, every type in this module implements
+//! `serde::Serialize`. Deserialization is provided only by [`crate::owned`],
+//! whose allocation-backed fields can accept data from every serde format
+//! without weakening this module's borrowing contract.
 
 use std::borrow::Cow;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct Counter<'a> {
     pub value: super::owned::UnsignedNumber,
@@ -34,6 +40,7 @@ impl Counter<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct Histogram<'a> {
     pub sample_sum: Option<super::owned::Number>,
@@ -54,6 +61,7 @@ impl Histogram<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct NativeHistogram<'a> {
     pub schema: i32,
@@ -84,6 +92,7 @@ impl NativeHistogram<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct Info<'a> {
     pub labels: Vec<LabelPair<'a>>,
@@ -97,6 +106,7 @@ impl Info<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct State<'a> {
     pub name: Cow<'a, str>,
@@ -112,6 +122,7 @@ impl State<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct StateSet<'a> {
     pub states: Vec<State<'a>>,
@@ -125,6 +136,7 @@ impl StateSet<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub enum MetricValue<'a> {
     Counter(Counter<'a>),
@@ -168,6 +180,7 @@ impl MetricValue<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub enum BucketCount<'a> {
     Int {
@@ -201,6 +214,7 @@ impl BucketCount<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct BucketFloat<'a> {
     pub cumulative_count: f64,
@@ -218,6 +232,7 @@ impl BucketFloat<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct BucketInt<'a> {
     pub cumulative_count: u64,
@@ -235,6 +250,7 @@ impl BucketInt<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct Exemplar<'a> {
     pub label: Vec<LabelPair<'a>>,
@@ -255,6 +271,7 @@ impl Exemplar<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct LabelPair<'a> {
     pub name: Cow<'a, str>,
@@ -270,6 +287,7 @@ impl LabelPair<'_> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct Metric<'a> {
     pub label: Vec<LabelPair<'a>>,
@@ -294,6 +312,7 @@ impl Metric<'_> {
 /// parsed buffer. The root type every parser yields; see the
 /// [module docs](self) for the borrowing contract and
 /// [`into_owned`](Self::into_owned) to detach from the buffer.
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct MetricFamily<'a> {
     pub name: Cow<'a, str>,

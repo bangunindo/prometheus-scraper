@@ -72,21 +72,23 @@ checksum = "b4388bee8683e3d04af747c73422af53102d2bd24d9eadb6cbc100baef4b43f8"
 
 [[package]]
 name = "buffa"
-version = "0.7.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec95898e2ef31d6266042f21c398fa5ff8334d14d6b2ac5fb38b55448d94f595"
+checksum = "b97ce1f34252b8e2516042e1002d56c160908a7ff8a1c9d47e97836558d1c83a"
 dependencies = [
  "bytes",
+ "foldhash",
  "hashbrown",
  "once_cell",
+ "rustversion",
  "thiserror",
 ]
 
 [[package]]
 name = "buffa-types"
-version = "0.7.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5103995623b8e213abfa84b89feb98a0df84514607aafd52e6add9ca53c57d2e"
+checksum = "64395042d2783ea33d9e80ae2f3c9430d3ae3aefd97699a02848038a231e8f5e"
 dependencies = [
  "buffa",
  "bytes",
@@ -136,6 +138,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -831,7 +834,7 @@ dependencies = [
 
 [[package]]
 name = "prometheus-scraper"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "async-stream",
  "buffa",
@@ -842,6 +845,8 @@ dependencies = [
  "futures-util",
  "nom",
  "reqwest",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
@@ -1169,6 +1174,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
+ "serde_derive",
 ]
 
 [[package]]
@@ -1189,6 +1195,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.151"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
+dependencies = [
+ "itoa",
+ "memchr",
+ "serde",
+ "serde_core",
+ "zmij",
 ]
 
 [[package]]
@@ -1917,3 +1936,9 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "zmij"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"

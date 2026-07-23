@@ -135,12 +135,7 @@ impl LabelPair {
         self
     }
 }
-impl ::buffa::DefaultInstance for LabelPair {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<LabelPair> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(LabelPair);
 impl ::buffa::MessageName for LabelPair {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "LabelPair";
@@ -150,45 +145,37 @@ impl ::buffa::MessageName for LabelPair {
 impl ::buffa::Message for LabelPair {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, _cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if let Some(ref v) = self.name {
-            size += 1u32 + ::buffa::types::string_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::string_encoded_len(v) as u64;
         }
         if let Some(ref v) = self.value {
-            size += 1u32 + ::buffa::types::string_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::string_encoded_len(v) as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         _cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(ref v) = self.name {
-            ::buffa::encoding::Tag::new(
-                    1u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::types::encode_string(v, buf);
+            ::buffa::types::put_string_field(1u32, v, buf);
         }
         if let Some(ref v) = self.value {
-            ::buffa::encoding::Tag::new(
-                    2u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::types::encode_string(v, buf);
+            ::buffa::types::put_string_field(2u32, v, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
     }
@@ -196,7 +183,7 @@ impl ::buffa::Message for LabelPair {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -204,26 +191,20 @@ impl ::buffa::Message for LabelPair {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::types::merge_string(
                     self.name.get_or_insert_with(::buffa::alloc::string::String::new),
                     buf,
                 )?;
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::types::merge_string(
                     self.value.get_or_insert_with(::buffa::alloc::string::String::new),
                     buf,
@@ -231,7 +212,7 @@ impl ::buffa::Message for LabelPair {
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -279,12 +260,7 @@ impl Gauge {
         self
     }
 }
-impl ::buffa::DefaultInstance for Gauge {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<Gauge> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(Gauge);
 impl ::buffa::MessageName for Gauge {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "Gauge";
@@ -294,31 +270,31 @@ impl ::buffa::MessageName for Gauge {
 impl ::buffa::Message for Gauge {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, _cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if self.value.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         _cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(v) = self.value {
-            ::buffa::encoding::Tag::new(1u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(1u32, v, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
     }
@@ -326,7 +302,7 @@ impl ::buffa::Message for Gauge {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -334,20 +310,17 @@ impl ::buffa::Message for Gauge {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.value = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -371,10 +344,11 @@ pub struct Counter {
     /// Field 1: `value`
     pub value: ::core::option::Option<f64>,
     /// Field 2: `exemplar`
-    pub exemplar: ::buffa::MessageField<Exemplar>,
+    pub exemplar: ::buffa::MessageField<Exemplar, ::buffa::Inline<Exemplar>>,
     /// Field 3: `created_timestamp`
     pub created_timestamp: ::buffa::MessageField<
         ::buffa_types::google::protobuf::Timestamp,
+        ::buffa::Inline<::buffa_types::google::protobuf::Timestamp>,
     >,
     #[doc(hidden)]
     pub __buffa_unknown_fields: ::buffa::UnknownFields,
@@ -404,12 +378,7 @@ impl Counter {
         self
     }
 }
-impl ::buffa::DefaultInstance for Counter {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<Counter> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(Counter);
 impl ::buffa::MessageName for Counter {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "Counter";
@@ -419,64 +388,62 @@ impl ::buffa::MessageName for Counter {
 impl ::buffa::Message for Counter {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, __cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if self.value.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
         if self.exemplar.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.exemplar.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if self.created_timestamp.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.created_timestamp.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         __cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(v) = self.value {
-            ::buffa::encoding::Tag::new(1u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(1u32, v, buf);
         }
         if self.exemplar.is_set() {
-            ::buffa::encoding::Tag::new(
-                    2u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                2u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.exemplar.write_to(__cache, buf);
         }
         if self.created_timestamp.is_set() {
-            ::buffa::encoding::Tag::new(
-                    3u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                3u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.created_timestamp.write_to(__cache, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
@@ -485,7 +452,7 @@ impl ::buffa::Message for Counter {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -493,48 +460,39 @@ impl ::buffa::Message for Counter {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.value = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.exemplar.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             3u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 3u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.created_timestamp.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -595,12 +553,7 @@ impl Quantile {
         self
     }
 }
-impl ::buffa::DefaultInstance for Quantile {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<Quantile> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(Quantile);
 impl ::buffa::MessageName for Quantile {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "Quantile";
@@ -610,39 +563,37 @@ impl ::buffa::MessageName for Quantile {
 impl ::buffa::Message for Quantile {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, _cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if self.quantile.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
         if self.value.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         _cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(v) = self.quantile {
-            ::buffa::encoding::Tag::new(1u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(1u32, v, buf);
         }
         if let Some(v) = self.value {
-            ::buffa::encoding::Tag::new(2u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(2u32, v, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
     }
@@ -650,7 +601,7 @@ impl ::buffa::Message for Quantile {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -658,32 +609,26 @@ impl ::buffa::Message for Quantile {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.quantile = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.value = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -714,6 +659,7 @@ pub struct Summary {
     /// Field 4: `created_timestamp`
     pub created_timestamp: ::buffa::MessageField<
         ::buffa_types::google::protobuf::Timestamp,
+        ::buffa::Inline<::buffa_types::google::protobuf::Timestamp>,
     >,
     #[doc(hidden)]
     pub __buffa_unknown_fields: ::buffa::UnknownFields,
@@ -751,12 +697,7 @@ impl Summary {
         self
     }
 }
-impl ::buffa::DefaultInstance for Summary {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<Summary> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(Summary);
 impl ::buffa::MessageName for Summary {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "Summary";
@@ -766,72 +707,68 @@ impl ::buffa::MessageName for Summary {
 impl ::buffa::Message for Summary {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, __cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if let Some(v) = self.sample_count {
-            size += 1u32 + ::buffa::types::uint64_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::uint64_encoded_len(v) as u64;
         }
         if self.sample_sum.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
         for v in &self.quantile {
             let __slot = __cache.reserve();
             let inner_size = v.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if self.created_timestamp.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.created_timestamp.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         __cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(v) = self.sample_count {
-            ::buffa::encoding::Tag::new(1u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_uint64(v, buf);
+            ::buffa::types::put_uint64_field(1u32, v, buf);
         }
         if let Some(v) = self.sample_sum {
-            ::buffa::encoding::Tag::new(2u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(2u32, v, buf);
         }
         for v in &self.quantile {
-            ::buffa::encoding::Tag::new(
-                    3u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                3u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             v.write_to(__cache, buf);
         }
         if self.created_timestamp.is_set() {
-            ::buffa::encoding::Tag::new(
-                    4u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                4u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.created_timestamp.write_to(__cache, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
@@ -840,7 +777,7 @@ impl ::buffa::Message for Summary {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -848,58 +785,49 @@ impl ::buffa::Message for Summary {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Varint {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 0u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Varint,
+                )?;
                 self.sample_count = ::core::option::Option::Some(
                     ::buffa::types::decode_uint64(buf)?,
                 );
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.sample_sum = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             3u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 3u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 let mut elem = ::core::default::Default::default();
-                ::buffa::Message::merge_length_delimited(&mut elem, buf, depth)?;
+                ctx.register_element_memory(
+                    ::buffa::__private::element_footprint(&elem),
+                )?;
+                ::buffa::Message::merge_length_delimited(&mut elem, buf, ctx)?;
                 self.quantile.push(elem);
             }
             4u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 4u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.created_timestamp.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -949,12 +877,7 @@ impl Untyped {
         self
     }
 }
-impl ::buffa::DefaultInstance for Untyped {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<Untyped> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(Untyped);
 impl ::buffa::MessageName for Untyped {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "Untyped";
@@ -964,31 +887,31 @@ impl ::buffa::MessageName for Untyped {
 impl ::buffa::Message for Untyped {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, _cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if self.value.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         _cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(v) = self.value {
-            ::buffa::encoding::Tag::new(1u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(1u32, v, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
     }
@@ -996,7 +919,7 @@ impl ::buffa::Message for Untyped {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -1004,20 +927,17 @@ impl ::buffa::Message for Untyped {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.value = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -1055,6 +975,7 @@ pub struct Histogram {
     /// Field 15: `created_timestamp`
     pub created_timestamp: ::buffa::MessageField<
         ::buffa_types::google::protobuf::Timestamp,
+        ::buffa::Inline<::buffa_types::google::protobuf::Timestamp>,
     >,
     /// Everything below here is for native histograms (formerly known as sparse histograms).
     ///
@@ -1200,12 +1121,7 @@ impl Histogram {
         self
     }
 }
-impl ::buffa::DefaultInstance for Histogram {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<Histogram> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(Histogram);
 impl ::buffa::MessageName for Histogram {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "Histogram";
@@ -1215,195 +1131,170 @@ impl ::buffa::MessageName for Histogram {
 impl ::buffa::Message for Histogram {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, __cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if let Some(v) = self.sample_count {
-            size += 1u32 + ::buffa::types::uint64_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::uint64_encoded_len(v) as u64;
         }
         if self.sample_sum.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
         for v in &self.bucket {
             let __slot = __cache.reserve();
             let inner_size = v.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if self.sample_count_float.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
         if let Some(v) = self.schema {
-            size += 1u32 + ::buffa::types::sint32_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::sint32_encoded_len(v) as u64;
         }
         if self.zero_threshold.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
         if let Some(v) = self.zero_count {
-            size += 1u32 + ::buffa::types::uint64_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::uint64_encoded_len(v) as u64;
         }
         if self.zero_count_float.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
         for v in &self.negative_span {
             let __slot = __cache.reserve();
             let inner_size = v.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         for v in &self.negative_delta {
-            size += 1u32 + ::buffa::types::sint64_encoded_len(*v) as u32;
+            size += 1u64 + ::buffa::types::sint64_encoded_len(*v) as u64;
         }
         size
-            += self.negative_count.len() as u32
-                * (1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32);
+            += self.negative_count.len() as u64
+                * (1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64);
         for v in &self.positive_span {
             let __slot = __cache.reserve();
             let inner_size = v.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         for v in &self.positive_delta {
-            size += 1u32 + ::buffa::types::sint64_encoded_len(*v) as u32;
+            size += 1u64 + ::buffa::types::sint64_encoded_len(*v) as u64;
         }
         size
-            += self.positive_count.len() as u32
-                * (1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32);
+            += self.positive_count.len() as u64
+                * (1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64);
         if self.created_timestamp.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.created_timestamp.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         for v in &self.exemplars {
             let __slot = __cache.reserve();
             let inner_size = v.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 2u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 2u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         __cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(v) = self.sample_count {
-            ::buffa::encoding::Tag::new(1u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_uint64(v, buf);
+            ::buffa::types::put_uint64_field(1u32, v, buf);
         }
         if let Some(v) = self.sample_sum {
-            ::buffa::encoding::Tag::new(2u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(2u32, v, buf);
         }
         for v in &self.bucket {
-            ::buffa::encoding::Tag::new(
-                    3u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                3u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             v.write_to(__cache, buf);
         }
         if let Some(v) = self.sample_count_float {
-            ::buffa::encoding::Tag::new(4u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(4u32, v, buf);
         }
         if let Some(v) = self.schema {
-            ::buffa::encoding::Tag::new(5u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_sint32(v, buf);
+            ::buffa::types::put_sint32_field(5u32, v, buf);
         }
         if let Some(v) = self.zero_threshold {
-            ::buffa::encoding::Tag::new(6u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(6u32, v, buf);
         }
         if let Some(v) = self.zero_count {
-            ::buffa::encoding::Tag::new(7u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_uint64(v, buf);
+            ::buffa::types::put_uint64_field(7u32, v, buf);
         }
         if let Some(v) = self.zero_count_float {
-            ::buffa::encoding::Tag::new(8u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(8u32, v, buf);
         }
         for v in &self.negative_span {
-            ::buffa::encoding::Tag::new(
-                    9u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                9u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             v.write_to(__cache, buf);
         }
         for v in &self.negative_delta {
-            ::buffa::encoding::Tag::new(10u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_sint64(*v, buf);
+            ::buffa::types::put_sint64_field(10u32, *v, buf);
         }
         for v in &self.negative_count {
-            ::buffa::encoding::Tag::new(11u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(*v, buf);
+            ::buffa::types::put_double_field(11u32, *v, buf);
         }
         for v in &self.positive_span {
-            ::buffa::encoding::Tag::new(
-                    12u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                12u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             v.write_to(__cache, buf);
         }
         for v in &self.positive_delta {
-            ::buffa::encoding::Tag::new(13u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_sint64(*v, buf);
+            ::buffa::types::put_sint64_field(13u32, *v, buf);
         }
         for v in &self.positive_count {
-            ::buffa::encoding::Tag::new(14u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(*v, buf);
+            ::buffa::types::put_double_field(14u32, *v, buf);
         }
         if self.created_timestamp.is_set() {
-            ::buffa::encoding::Tag::new(
-                    15u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                15u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.created_timestamp.write_to(__cache, buf);
         }
         for v in &self.exemplars {
-            ::buffa::encoding::Tag::new(
-                    16u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                16u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             v.write_to(__cache, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
@@ -1412,7 +1303,7 @@ impl ::buffa::Message for Histogram {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -1420,111 +1311,90 @@ impl ::buffa::Message for Histogram {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Varint {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 0u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Varint,
+                )?;
                 self.sample_count = ::core::option::Option::Some(
                     ::buffa::types::decode_uint64(buf)?,
                 );
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.sample_sum = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             3u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 3u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 let mut elem = ::core::default::Default::default();
-                ::buffa::Message::merge_length_delimited(&mut elem, buf, depth)?;
+                ctx.register_element_memory(
+                    ::buffa::__private::element_footprint(&elem),
+                )?;
+                ::buffa::Message::merge_length_delimited(&mut elem, buf, ctx)?;
                 self.bucket.push(elem);
             }
             4u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 4u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.sample_count_float = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             5u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Varint {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 5u32,
-                        expected: 0u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Varint,
+                )?;
                 self.schema = ::core::option::Option::Some(
                     ::buffa::types::decode_sint32(buf)?,
                 );
             }
             6u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 6u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.zero_threshold = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             7u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Varint {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 7u32,
-                        expected: 0u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Varint,
+                )?;
                 self.zero_count = ::core::option::Option::Some(
                     ::buffa::types::decode_uint64(buf)?,
                 );
             }
             8u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 8u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.zero_count_float = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             9u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 9u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 let mut elem = ::core::default::Default::default();
-                ::buffa::Message::merge_length_delimited(&mut elem, buf, depth)?;
+                ctx.register_element_memory(
+                    ::buffa::__private::element_footprint(&elem),
+                )?;
+                ::buffa::Message::merge_length_delimited(&mut elem, buf, ctx)?;
                 self.negative_span.push(elem);
             }
             10u32 => {
@@ -1537,24 +1407,34 @@ impl ::buffa::Message for Histogram {
                             ::buffa::DecodeError::UnexpectedEof,
                         );
                     }
-                    self.negative_delta.reserve(len);
-                    let mut limited = buf.take(len);
-                    while limited.has_remaining() {
-                        self.negative_delta
-                            .push(::buffa::types::decode_sint64(&mut limited)?);
-                    }
-                    let leftover = limited.remaining();
-                    if leftover > 0 {
-                        limited.advance(leftover);
+                    if buf.chunk().len() >= len {
+                        ::buffa::types::extend_packed_sint64(
+                            &buf.chunk()[..len],
+                            &mut self.negative_delta,
+                            len,
+                        )?;
+                        buf.advance(len);
+                    } else {
+                        self.negative_delta.reserve(len);
+                        let mut limited = buf.take(len);
+                        while limited.has_remaining() {
+                            self.negative_delta
+                                .push(::buffa::types::decode_sint64_packed(&mut limited)?);
+                        }
+                        let leftover = limited.remaining();
+                        if leftover > 0 {
+                            limited.advance(leftover);
+                        }
                     }
                 } else if tag.wire_type() == ::buffa::encoding::WireType::Varint {
                     self.negative_delta.push(::buffa::types::decode_sint64(buf)?);
                 } else {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 10u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
+                    return ::core::result::Result::Err(
+                        ::buffa::encoding::wire_type_mismatch(
+                            tag,
+                            ::buffa::encoding::WireType::LengthDelimited,
+                        ),
+                    );
                 }
             }
             11u32 => {
@@ -1567,36 +1447,45 @@ impl ::buffa::Message for Histogram {
                             ::buffa::DecodeError::UnexpectedEof,
                         );
                     }
-                    self.negative_count.reserve(len / 8usize);
-                    let mut limited = buf.take(len);
-                    while limited.has_remaining() {
-                        self.negative_count
-                            .push(::buffa::types::decode_double(&mut limited)?);
-                    }
-                    let leftover = limited.remaining();
-                    if leftover > 0 {
-                        limited.advance(leftover);
+                    if buf.chunk().len() >= len {
+                        ::buffa::types::extend_packed_double(
+                            &buf.chunk()[..len],
+                            &mut self.negative_count,
+                        )?;
+                        buf.advance(len);
+                    } else {
+                        self.negative_count.reserve(len / 8usize);
+                        let mut limited = buf.take(len);
+                        while limited.has_remaining() {
+                            self.negative_count
+                                .push(::buffa::types::decode_double(&mut limited)?);
+                        }
+                        let leftover = limited.remaining();
+                        if leftover > 0 {
+                            limited.advance(leftover);
+                        }
                     }
                 } else if tag.wire_type() == ::buffa::encoding::WireType::Fixed64 {
                     self.negative_count.push(::buffa::types::decode_double(buf)?);
                 } else {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 11u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
+                    return ::core::result::Result::Err(
+                        ::buffa::encoding::wire_type_mismatch(
+                            tag,
+                            ::buffa::encoding::WireType::LengthDelimited,
+                        ),
+                    );
                 }
             }
             12u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 12u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 let mut elem = ::core::default::Default::default();
-                ::buffa::Message::merge_length_delimited(&mut elem, buf, depth)?;
+                ctx.register_element_memory(
+                    ::buffa::__private::element_footprint(&elem),
+                )?;
+                ::buffa::Message::merge_length_delimited(&mut elem, buf, ctx)?;
                 self.positive_span.push(elem);
             }
             13u32 => {
@@ -1609,24 +1498,34 @@ impl ::buffa::Message for Histogram {
                             ::buffa::DecodeError::UnexpectedEof,
                         );
                     }
-                    self.positive_delta.reserve(len);
-                    let mut limited = buf.take(len);
-                    while limited.has_remaining() {
-                        self.positive_delta
-                            .push(::buffa::types::decode_sint64(&mut limited)?);
-                    }
-                    let leftover = limited.remaining();
-                    if leftover > 0 {
-                        limited.advance(leftover);
+                    if buf.chunk().len() >= len {
+                        ::buffa::types::extend_packed_sint64(
+                            &buf.chunk()[..len],
+                            &mut self.positive_delta,
+                            len,
+                        )?;
+                        buf.advance(len);
+                    } else {
+                        self.positive_delta.reserve(len);
+                        let mut limited = buf.take(len);
+                        while limited.has_remaining() {
+                            self.positive_delta
+                                .push(::buffa::types::decode_sint64_packed(&mut limited)?);
+                        }
+                        let leftover = limited.remaining();
+                        if leftover > 0 {
+                            limited.advance(leftover);
+                        }
                     }
                 } else if tag.wire_type() == ::buffa::encoding::WireType::Varint {
                     self.positive_delta.push(::buffa::types::decode_sint64(buf)?);
                 } else {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 13u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
+                    return ::core::result::Result::Err(
+                        ::buffa::encoding::wire_type_mismatch(
+                            tag,
+                            ::buffa::encoding::WireType::LengthDelimited,
+                        ),
+                    );
                 }
             }
             14u32 => {
@@ -1639,55 +1538,61 @@ impl ::buffa::Message for Histogram {
                             ::buffa::DecodeError::UnexpectedEof,
                         );
                     }
-                    self.positive_count.reserve(len / 8usize);
-                    let mut limited = buf.take(len);
-                    while limited.has_remaining() {
-                        self.positive_count
-                            .push(::buffa::types::decode_double(&mut limited)?);
-                    }
-                    let leftover = limited.remaining();
-                    if leftover > 0 {
-                        limited.advance(leftover);
+                    if buf.chunk().len() >= len {
+                        ::buffa::types::extend_packed_double(
+                            &buf.chunk()[..len],
+                            &mut self.positive_count,
+                        )?;
+                        buf.advance(len);
+                    } else {
+                        self.positive_count.reserve(len / 8usize);
+                        let mut limited = buf.take(len);
+                        while limited.has_remaining() {
+                            self.positive_count
+                                .push(::buffa::types::decode_double(&mut limited)?);
+                        }
+                        let leftover = limited.remaining();
+                        if leftover > 0 {
+                            limited.advance(leftover);
+                        }
                     }
                 } else if tag.wire_type() == ::buffa::encoding::WireType::Fixed64 {
                     self.positive_count.push(::buffa::types::decode_double(buf)?);
                 } else {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 14u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
+                    return ::core::result::Result::Err(
+                        ::buffa::encoding::wire_type_mismatch(
+                            tag,
+                            ::buffa::encoding::WireType::LengthDelimited,
+                        ),
+                    );
                 }
             }
             15u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 15u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.created_timestamp.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             16u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 16u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 let mut elem = ::core::default::Default::default();
-                ::buffa::Message::merge_length_delimited(&mut elem, buf, depth)?;
+                ctx.register_element_memory(
+                    ::buffa::__private::element_footprint(&elem),
+                )?;
+                ::buffa::Message::merge_length_delimited(&mut elem, buf, ctx)?;
                 self.exemplars.push(elem);
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -1738,7 +1643,7 @@ pub struct Bucket {
     /// Field 2: `upper_bound`
     pub upper_bound: ::core::option::Option<f64>,
     /// Field 3: `exemplar`
-    pub exemplar: ::buffa::MessageField<Exemplar>,
+    pub exemplar: ::buffa::MessageField<Exemplar, ::buffa::Inline<Exemplar>>,
     #[doc(hidden)]
     pub __buffa_unknown_fields: ::buffa::UnknownFields,
 }
@@ -1782,12 +1687,7 @@ impl Bucket {
         self
     }
 }
-impl ::buffa::DefaultInstance for Bucket {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<Bucket> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(Bucket);
 impl ::buffa::MessageName for Bucket {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "Bucket";
@@ -1797,64 +1697,59 @@ impl ::buffa::MessageName for Bucket {
 impl ::buffa::Message for Bucket {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, __cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if let Some(v) = self.cumulative_count {
-            size += 1u32 + ::buffa::types::uint64_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::uint64_encoded_len(v) as u64;
         }
         if self.upper_bound.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
         if self.exemplar.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.exemplar.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if self.cumulative_count_float.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         __cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(v) = self.cumulative_count {
-            ::buffa::encoding::Tag::new(1u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_uint64(v, buf);
+            ::buffa::types::put_uint64_field(1u32, v, buf);
         }
         if let Some(v) = self.upper_bound {
-            ::buffa::encoding::Tag::new(2u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(2u32, v, buf);
         }
         if self.exemplar.is_set() {
-            ::buffa::encoding::Tag::new(
-                    3u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                3u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.exemplar.write_to(__cache, buf);
         }
         if let Some(v) = self.cumulative_count_float {
-            ::buffa::encoding::Tag::new(4u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(4u32, v, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
     }
@@ -1862,7 +1757,7 @@ impl ::buffa::Message for Bucket {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -1870,58 +1765,46 @@ impl ::buffa::Message for Bucket {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Varint {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 0u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Varint,
+                )?;
                 self.cumulative_count = ::core::option::Option::Some(
                     ::buffa::types::decode_uint64(buf)?,
                 );
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.upper_bound = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             3u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 3u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.exemplar.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             4u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 4u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.cumulative_count_float = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -1993,12 +1876,7 @@ impl BucketSpan {
         self
     }
 }
-impl ::buffa::DefaultInstance for BucketSpan {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<BucketSpan> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(BucketSpan);
 impl ::buffa::MessageName for BucketSpan {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "BucketSpan";
@@ -2008,39 +1886,37 @@ impl ::buffa::MessageName for BucketSpan {
 impl ::buffa::Message for BucketSpan {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, _cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if let Some(v) = self.offset {
-            size += 1u32 + ::buffa::types::sint32_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::sint32_encoded_len(v) as u64;
         }
         if let Some(v) = self.length {
-            size += 1u32 + ::buffa::types::uint32_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::uint32_encoded_len(v) as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         _cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(v) = self.offset {
-            ::buffa::encoding::Tag::new(1u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_sint32(v, buf);
+            ::buffa::types::put_sint32_field(1u32, v, buf);
         }
         if let Some(v) = self.length {
-            ::buffa::encoding::Tag::new(2u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_uint32(v, buf);
+            ::buffa::types::put_uint32_field(2u32, v, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
     }
@@ -2048,7 +1924,7 @@ impl ::buffa::Message for BucketSpan {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -2056,32 +1932,26 @@ impl ::buffa::Message for BucketSpan {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Varint {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 0u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Varint,
+                )?;
                 self.offset = ::core::option::Option::Some(
                     ::buffa::types::decode_sint32(buf)?,
                 );
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Varint {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 0u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Varint,
+                )?;
                 self.length = ::core::option::Option::Some(
                     ::buffa::types::decode_uint32(buf)?,
                 );
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -2110,7 +1980,10 @@ pub struct Exemplar {
     /// OpenMetrics-style.
     ///
     /// Field 3: `timestamp`
-    pub timestamp: ::buffa::MessageField<::buffa_types::google::protobuf::Timestamp>,
+    pub timestamp: ::buffa::MessageField<
+        ::buffa_types::google::protobuf::Timestamp,
+        ::buffa::Inline<::buffa_types::google::protobuf::Timestamp>,
+    >,
     #[doc(hidden)]
     pub __buffa_unknown_fields: ::buffa::UnknownFields,
 }
@@ -2139,12 +2012,7 @@ impl Exemplar {
         self
     }
 }
-impl ::buffa::DefaultInstance for Exemplar {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<Exemplar> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(Exemplar);
 impl ::buffa::MessageName for Exemplar {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "Exemplar";
@@ -2154,64 +2022,62 @@ impl ::buffa::MessageName for Exemplar {
 impl ::buffa::Message for Exemplar {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, __cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         for v in &self.label {
             let __slot = __cache.reserve();
             let inner_size = v.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if self.value.is_some() {
-            size += 1u32 + ::buffa::types::FIXED64_ENCODED_LEN as u32;
+            size += 1u64 + ::buffa::types::FIXED64_ENCODED_LEN as u64;
         }
         if self.timestamp.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.timestamp.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         __cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         for v in &self.label {
-            ::buffa::encoding::Tag::new(
-                    1u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                1u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             v.write_to(__cache, buf);
         }
         if let Some(v) = self.value {
-            ::buffa::encoding::Tag::new(2u32, ::buffa::encoding::WireType::Fixed64)
-                .encode(buf);
-            ::buffa::types::encode_double(v, buf);
+            ::buffa::types::put_double_field(2u32, v, buf);
         }
         if self.timestamp.is_set() {
-            ::buffa::encoding::Tag::new(
-                    3u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                3u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.timestamp.write_to(__cache, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
@@ -2220,7 +2086,7 @@ impl ::buffa::Message for Exemplar {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -2228,46 +2094,40 @@ impl ::buffa::Message for Exemplar {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 let mut elem = ::core::default::Default::default();
-                ::buffa::Message::merge_length_delimited(&mut elem, buf, depth)?;
+                ctx.register_element_memory(
+                    ::buffa::__private::element_footprint(&elem),
+                )?;
+                ::buffa::Message::merge_length_delimited(&mut elem, buf, ctx)?;
                 self.label.push(elem);
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Fixed64 {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 1u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Fixed64,
+                )?;
                 self.value = ::core::option::Option::Some(
                     ::buffa::types::decode_double(buf)?,
                 );
             }
             3u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 3u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.timestamp.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -2293,15 +2153,15 @@ pub struct Metric {
     /// Field 1: `label`
     pub label: ::buffa::alloc::vec::Vec<LabelPair>,
     /// Field 2: `gauge`
-    pub gauge: ::buffa::MessageField<Gauge>,
+    pub gauge: ::buffa::MessageField<Gauge, ::buffa::Inline<Gauge>>,
     /// Field 3: `counter`
-    pub counter: ::buffa::MessageField<Counter>,
+    pub counter: ::buffa::MessageField<Counter, ::buffa::Inline<Counter>>,
     /// Field 4: `summary`
-    pub summary: ::buffa::MessageField<Summary>,
+    pub summary: ::buffa::MessageField<Summary, ::buffa::Inline<Summary>>,
     /// Field 5: `untyped`
-    pub untyped: ::buffa::MessageField<Untyped>,
+    pub untyped: ::buffa::MessageField<Untyped, ::buffa::Inline<Untyped>>,
     /// Field 7: `histogram`
-    pub histogram: ::buffa::MessageField<Histogram>,
+    pub histogram: ::buffa::MessageField<Histogram, ::buffa::Inline<Histogram>>,
     /// Field 6: `timestamp_ms`
     pub timestamp_ms: ::core::option::Option<i64>,
     #[doc(hidden)]
@@ -2336,12 +2196,7 @@ impl Metric {
         self
     }
 }
-impl ::buffa::DefaultInstance for Metric {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<Metric> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(Metric);
 impl ::buffa::MessageName for Metric {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "Metric";
@@ -2351,132 +2206,126 @@ impl ::buffa::MessageName for Metric {
 impl ::buffa::Message for Metric {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, __cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         for v in &self.label {
             let __slot = __cache.reserve();
             let inner_size = v.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if self.gauge.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.gauge.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if self.counter.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.counter.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if self.summary.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.summary.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if self.untyped.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.untyped.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if let Some(v) = self.timestamp_ms {
-            size += 1u32 + ::buffa::types::int64_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::int64_encoded_len(v) as u64;
         }
         if self.histogram.is_set() {
             let __slot = __cache.reserve();
             let inner_size = self.histogram.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         __cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         for v in &self.label {
-            ::buffa::encoding::Tag::new(
-                    1u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                1u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             v.write_to(__cache, buf);
         }
         if self.gauge.is_set() {
-            ::buffa::encoding::Tag::new(
-                    2u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                2u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.gauge.write_to(__cache, buf);
         }
         if self.counter.is_set() {
-            ::buffa::encoding::Tag::new(
-                    3u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                3u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.counter.write_to(__cache, buf);
         }
         if self.summary.is_set() {
-            ::buffa::encoding::Tag::new(
-                    4u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                4u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.summary.write_to(__cache, buf);
         }
         if self.untyped.is_set() {
-            ::buffa::encoding::Tag::new(
-                    5u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                5u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.untyped.write_to(__cache, buf);
         }
         if let Some(v) = self.timestamp_ms {
-            ::buffa::encoding::Tag::new(6u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_int64(v, buf);
+            ::buffa::types::put_int64_field(6u32, v, buf);
         }
         if self.histogram.is_set() {
-            ::buffa::encoding::Tag::new(
-                    7u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                7u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             self.histogram.write_to(__cache, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
@@ -2485,7 +2334,7 @@ impl ::buffa::Message for Metric {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -2493,102 +2342,84 @@ impl ::buffa::Message for Metric {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 let mut elem = ::core::default::Default::default();
-                ::buffa::Message::merge_length_delimited(&mut elem, buf, depth)?;
+                ctx.register_element_memory(
+                    ::buffa::__private::element_footprint(&elem),
+                )?;
+                ::buffa::Message::merge_length_delimited(&mut elem, buf, ctx)?;
                 self.label.push(elem);
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.gauge.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             3u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 3u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.counter.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             4u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 4u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.summary.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             5u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 5u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.untyped.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             6u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Varint {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 6u32,
-                        expected: 0u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Varint,
+                )?;
                 self.timestamp_ms = ::core::option::Option::Some(
                     ::buffa::types::decode_int64(buf)?,
                 );
             }
             7u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 7u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::Message::merge_length_delimited(
                     self.histogram.get_or_insert_default(),
                     buf,
-                    depth,
+                    ctx,
                 )?;
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
@@ -2685,12 +2516,7 @@ impl MetricFamily {
         self
     }
 }
-impl ::buffa::DefaultInstance for MetricFamily {
-    fn default_instance() -> &'static Self {
-        static VALUE: ::buffa::__private::OnceBox<MetricFamily> = ::buffa::__private::OnceBox::new();
-        VALUE.get_or_init(|| ::buffa::alloc::boxed::Box::new(Self::default()))
-    }
-}
+::buffa::impl_default_instance!(MetricFamily);
 impl ::buffa::MessageName for MetricFamily {
     const PACKAGE: &'static str = "io.prometheus.client";
     const NAME: &'static str = "MetricFamily";
@@ -2700,81 +2526,65 @@ impl ::buffa::MessageName for MetricFamily {
 impl ::buffa::Message for MetricFamily {
     /// Returns the total encoded size in bytes.
     ///
-    /// The result is a `u32`; the protobuf specification requires all
-    /// messages to fit within 2 GiB (2,147,483,647 bytes), so a
-    /// compliant message will never overflow this type.
+    /// Accumulates in `u64` (which cannot overflow for in-memory
+    /// data) and saturates to `u32` at return, so a message whose
+    /// encoded size exceeds the 2 GiB protobuf limit yields a value
+    /// above [`::buffa::MAX_MESSAGE_BYTES`] that the encode entry
+    /// points reject, never a silently wrapped size.
     #[allow(clippy::let_and_return)]
     fn compute_size(&self, __cache: &mut ::buffa::SizeCache) -> u32 {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
-        let mut size = 0u32;
+        let mut size = 0u64;
         if let Some(ref v) = self.name {
-            size += 1u32 + ::buffa::types::string_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::string_encoded_len(v) as u64;
         }
         if let Some(ref v) = self.help {
-            size += 1u32 + ::buffa::types::string_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::string_encoded_len(v) as u64;
         }
         if let Some(ref v) = self.r#type {
-            size += 1u32 + ::buffa::types::int32_encoded_len(v.to_i32()) as u32;
+            size += 1u64 + ::buffa::types::int32_encoded_len(v.to_i32()) as u64;
         }
         for v in &self.metric {
             let __slot = __cache.reserve();
             let inner_size = v.compute_size(__cache);
             __cache.set(__slot, inner_size);
             size
-                += 1u32 + ::buffa::encoding::varint_len(inner_size as u64) as u32
-                    + inner_size;
+                += 1u64 + ::buffa::encoding::varint_len(inner_size as u64) as u64
+                    + inner_size as u64;
         }
         if let Some(ref v) = self.unit {
-            size += 1u32 + ::buffa::types::string_encoded_len(v) as u32;
+            size += 1u64 + ::buffa::types::string_encoded_len(v) as u64;
         }
-        size += self.__buffa_unknown_fields.encoded_len() as u32;
-        size
+        size += self.__buffa_unknown_fields.encoded_len() as u64;
+        ::buffa::saturate_size(size)
     }
     fn write_to(
         &self,
         __cache: &mut ::buffa::SizeCache,
-        buf: &mut impl ::buffa::bytes::BufMut,
+        buf: &mut impl ::buffa::EncodeSink,
     ) {
         #[allow(unused_imports)]
         use ::buffa::Enumeration as _;
         if let Some(ref v) = self.name {
-            ::buffa::encoding::Tag::new(
-                    1u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::types::encode_string(v, buf);
+            ::buffa::types::put_string_field(1u32, v, buf);
         }
         if let Some(ref v) = self.help {
-            ::buffa::encoding::Tag::new(
-                    2u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::types::encode_string(v, buf);
+            ::buffa::types::put_string_field(2u32, v, buf);
         }
         if let Some(ref v) = self.r#type {
-            ::buffa::encoding::Tag::new(3u32, ::buffa::encoding::WireType::Varint)
-                .encode(buf);
-            ::buffa::types::encode_int32(v.to_i32(), buf);
+            ::buffa::types::put_int32_field(3u32, v.to_i32(), buf);
         }
         for v in &self.metric {
-            ::buffa::encoding::Tag::new(
-                    4u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::encoding::encode_varint(__cache.consume_next() as u64, buf);
+            ::buffa::types::put_len_delimited_header(
+                4u32,
+                u64::from(__cache.consume_next()),
+                buf,
+            );
             v.write_to(__cache, buf);
         }
         if let Some(ref v) = self.unit {
-            ::buffa::encoding::Tag::new(
-                    5u32,
-                    ::buffa::encoding::WireType::LengthDelimited,
-                )
-                .encode(buf);
-            ::buffa::types::encode_string(v, buf);
+            ::buffa::types::put_string_field(5u32, v, buf);
         }
         self.__buffa_unknown_fields.write_to(buf);
     }
@@ -2782,7 +2592,7 @@ impl ::buffa::Message for MetricFamily {
         &mut self,
         tag: ::buffa::encoding::Tag,
         buf: &mut impl ::buffa::bytes::Buf,
-        depth: u32,
+        ctx: ::buffa::DecodeContext<'_>,
     ) -> ::core::result::Result<(), ::buffa::DecodeError> {
         #[allow(unused_imports)]
         use ::buffa::bytes::Buf as _;
@@ -2790,45 +2600,37 @@ impl ::buffa::Message for MetricFamily {
         use ::buffa::Enumeration as _;
         match tag.field_number() {
             1u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 1u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::types::merge_string(
                     self.name.get_or_insert_with(::buffa::alloc::string::String::new),
                     buf,
                 )?;
             }
             2u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 2u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::types::merge_string(
                     self.help.get_or_insert_with(::buffa::alloc::string::String::new),
                     buf,
                 )?;
             }
             3u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::Varint {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 3u32,
-                        expected: 0u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::Varint,
+                )?;
                 let __raw = ::buffa::types::decode_int32(buf)?;
                 if let ::core::option::Option::Some(__v) = ::buffa::Enumeration::from_i32(
                     __raw,
                 ) {
                     self.r#type = ::core::option::Option::Some(__v);
                 } else {
+                    ctx.register_unknown_field()?;
                     self.__buffa_unknown_fields
                         .push(::buffa::UnknownField {
                             number: 3u32,
@@ -2837,25 +2639,22 @@ impl ::buffa::Message for MetricFamily {
                 }
             }
             4u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 4u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 let mut elem = ::core::default::Default::default();
-                ::buffa::Message::merge_length_delimited(&mut elem, buf, depth)?;
+                ctx.register_element_memory(
+                    ::buffa::__private::element_footprint(&elem),
+                )?;
+                ::buffa::Message::merge_length_delimited(&mut elem, buf, ctx)?;
                 self.metric.push(elem);
             }
             5u32 => {
-                if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
-                    return ::core::result::Result::Err(::buffa::DecodeError::WireTypeMismatch {
-                        field_number: 5u32,
-                        expected: 2u8,
-                        actual: tag.wire_type() as u8,
-                    });
-                }
+                ::buffa::encoding::check_wire_type(
+                    tag,
+                    ::buffa::encoding::WireType::LengthDelimited,
+                )?;
                 ::buffa::types::merge_string(
                     self.unit.get_or_insert_with(::buffa::alloc::string::String::new),
                     buf,
@@ -2863,7 +2662,7 @@ impl ::buffa::Message for MetricFamily {
             }
             _ => {
                 self.__buffa_unknown_fields
-                    .push(::buffa::encoding::decode_unknown_field(tag, buf, depth)?);
+                    .push(::buffa::encoding::decode_unknown_field(tag, buf, ctx)?);
             }
         }
         ::core::result::Result::Ok(())
